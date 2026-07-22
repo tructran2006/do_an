@@ -3,12 +3,13 @@ import 'package:intl/intl.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/appointment_model.dart';
-import 'package:do_an/data/model/home_service.dart'; 
-import 'package:do_an/data/model/provider_model.dart'; 
+import 'package:do_an/data/model/home_service.dart';
+import 'package:do_an/data/model/provider_model.dart';
+import 'package:do_an/data/model/service_category.dart';
 import 'package:do_an/page/user/booking/booking_success_page.dart';
 
 class BookingWidget extends StatefulWidget {
-  final HomeServiceModel service; 
+  final HomeServiceModel service;
   final int userId;
 
   const BookingWidget({
@@ -18,149 +19,51 @@ class BookingWidget extends StatefulWidget {
   });
 
   @override
-  State<BookingWidget> createState() => _BookingWidgetState();
+  State<BookingWidget> createState() =>
+      _BookingWidgetState();
 }
 
 class _BookingWidgetState extends State<BookingWidget> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
-  
-  int _selectedDayIndex = 0;
-  int? _selectedTimeIndex; 
-  bool _isLoading = true;
+  final DatabaseHelper _databaseHelper =
+  DatabaseHelper();
 
-  // Khởi tạo các mảng dữ liệu lấy từ DB
+  final GlobalKey<FormState> _formKey =
+  GlobalKey<FormState>();
+
+  final TextEditingController _addressController =
+  TextEditingController();
+
+  final TextEditingController _noteController =
+  TextEditingController();
+
+  List<ServiceCategoryModel> _categories = [];
   List<HomeServiceModel> _services = [];
-  List<ProviderModel> _allProviders = [];
-  
-  // Đối tượng lưu trữ trạng thái người dùng chọn trên UI
+  List<ProviderModel> _providers = [];
+
   HomeServiceModel? _selectedService;
+  ServiceCategoryModel? _selectedCategory;
   ProviderModel? _selectedProvider;
 
-  final List<String> _timeSlots = [
-    "08:00 - 10:00",
-    "10:00 - 12:00",
-    "14:00 - 16:00",
-    "16:00 - 18:00",
-  ];
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+
+  bool _isLoading = true;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDatabaseData();
+    _loadData();
   }
 
-  // Thực hiện đọc dữ liệu bất đồng bộ từ các câu lệnh SQL cục bộ
-  Future<void> _loadDatabaseData() async {
-    try {
-      final db = DatabaseHelper();
-      final servicesData = await db.getAllServices(); 
-      final providersData = await db.getAllProviders();
+  @override
+  void didUpdateWidget(
+      covariant BookingWidget oldWidget,
+      ) {
+    super.didUpdateWidget(oldWidget);
 
-      setState(() {
-        _services = servicesData;
-        _allProviders = providersData;
-        
-        // Tìm và liên kết đúng thực thể dịch vụ truyền vào từ màn hình trước
-        if (_services.isNotEmpty) {
-          _selectedService = _services.firstWhere(
-            (s) => s.id == widget.service.id,
-            orElse: () => widget.service,
-          );
-        } else {
-          _selectedService = widget.service;
-        }
-        
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải cơ sở dữ liệu: $e')),
-        );
-      }
-    }
-  }
-
-  // Kỹ thuật xử lý tập hợp: Tự động lọc danh sách nhân viên theo ID của dịch vụ hiện tại
-  List<ProviderModel> get _filteredProviders {
-    if (_selectedService == null) return [];
-    return _allProviders.where((p) => p.serviceId == _selectedService!.id).toList();
-  }
-
-  // Tính tổng tiền động dựa vào thuộc tính price của Dịch vụ được chọn
-  double _calculateTotalAmount() {
-    if (_selectedService == null) return 0.0;
-    return ((_selectedService!.price ?? 0) * 2).toDouble();
-  }
-
-  Future<void> _submitBooking(List<DateTime> days, double totalAmount) async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    if (_selectedService == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn một dịch vụ!')),
-      );
-      return;
-    }
-
-    if (_selectedProvider == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng lựa chọn nhân viên thực hiện!')),
-      );
-      return;
-    }
-
-    if (_selectedTimeIndex == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn khung giờ làm việc!')),
-      );
-      return;
-    }
-
-    DateTime chosenDate = days[_selectedDayIndex];
-    String chosenTime = _timeSlots[_selectedTimeIndex!];
-    String appointmentDateTime = "${DateFormat('yyyy-MM-dd').format(chosenDate)} $chosenTime";
-
-    // Khởi tạo Object cấu trúc chuẩn Map để đẩy xuống hàm insertAppointment
-    AppointmentModel newAppointment = AppointmentModel(
-      userId: widget.userId,
-      serviceId: _selectedService!.id ?? 0, 
-      bookDate: appointmentDateTime,
-      status: 'PENDING',
-      address: _addressController.text.trim(),
-      note: "${_noteController.text.trim()} (Thợ: ${_selectedProvider!.name} - ${_selectedProvider!.phone})",
-    );
-
-    try {
-      final db = DatabaseHelper();
-      await db.insertAppointment(newAppointment);
-
-      if (mounted) {
-        // CẬP NHẬT: Truyền toàn bộ thông tin chi tiết dịch vụ và thợ sang trang Success
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BookingSuccessPage(
-              serviceName: _selectedService!.name ?? 'Dịch vụ',
-              servicePrice: totalAmount,
-              providerName: _selectedProvider!.name,
-              providerPhone: _selectedProvider!.phone,
-              dateTime: appointmentDateTime,
-              address: _addressController.text.trim(),
-              note: _noteController.text.trim(),
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi khi lưu lịch đặt: $e')),
-        );
-      }
+    if (oldWidget.service.id != widget.service.id) {
+      _selectServiceFromOutside();
     }
   }
 
@@ -171,320 +74,942 @@ class _BookingWidgetState extends State<BookingWidget> {
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      final List<ServiceCategoryModel> categories =
+      await _databaseHelper.getAllCategories();
+
+      final List<HomeServiceModel> services =
+      await _databaseHelper.getAllServices();
+
+      final List<ProviderModel> providers =
+      await _databaseHelper.getAllProviders();
+
+      services.sort(
+            (
+            HomeServiceModel first,
+            HomeServiceModel second,
+            ) {
+          final String firstName =
+              first.name?.trim().toLowerCase() ?? '';
+
+          final String secondName =
+              second.name?.trim().toLowerCase() ?? '';
+
+          return firstName.compareTo(secondName);
+        },
+      );
+
+      providers.sort(
+            (
+            ProviderModel first,
+            ProviderModel second,
+            ) {
+          return first.name
+              .trim()
+              .toLowerCase()
+              .compareTo(
+            second.name.trim().toLowerCase(),
+          );
+        },
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _categories = categories;
+        _services = services;
+        _providers = providers;
+        _isLoading = false;
+      });
+
+      _selectServiceFromOutside();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Lỗi tải dữ liệu đặt lịch: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showMessage(
+        'Không thể tải dữ liệu đặt lịch: $error',
+      );
+    }
+  }
+
+  void _selectServiceFromOutside() {
+    final int? externalServiceId =
+        widget.service.id;
+
+    if (_services.isEmpty ||
+        externalServiceId == null ||
+        externalServiceId <= 0) {
+      return;
+    }
+
+    HomeServiceModel? matchedService;
+
+    for (final HomeServiceModel service in _services) {
+      if (service.id == externalServiceId) {
+        matchedService = service;
+        break;
+      }
+    }
+
+    if (matchedService == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedService = matchedService;
+      _selectedCategory =
+          _findCategory(matchedService!.catId);
+      _selectedProvider = null;
+    });
+  }
+
+  ServiceCategoryModel? _findCategory(
+      int? categoryId,
+      ) {
+    if (categoryId == null) {
+      return null;
+    }
+
+    for (final ServiceCategoryModel category
+    in _categories) {
+      if (category.id == categoryId) {
+        return category;
+      }
+    }
+
+    return null;
+  }
+
+  void _onServiceChanged(
+      HomeServiceModel? service,
+      ) {
+    setState(() {
+      _selectedService = service;
+      _selectedCategory =
+          _findCategory(service?.catId);
+      _selectedProvider = null;
+    });
+  }
+
+  List<ProviderModel> get _availableProviders {
+    final int? serviceId = _selectedService?.id;
+
+    if (serviceId == null || serviceId <= 0) {
+      return [];
+    }
+
+    return _providers.where(
+          (ProviderModel provider) {
+        return provider.serviceId == serviceId;
+      },
+    ).toList();
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime now = DateTime.now();
+
+    final DateTime? pickedDate =
+    await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ),
+      lastDate: now.add(
+        const Duration(days: 90),
+      ),
+    );
+
+    if (pickedDate == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedDate = pickedDate;
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final TimeOfDay? pickedTime =
+    await showTimePicker(
+      context: context,
+      initialTime:
+      _selectedTime ?? TimeOfDay.now(),
+    );
+
+    if (pickedTime == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedTime = pickedTime;
+    });
+  }
+
+  DateTime? _getAppointmentDateTime() {
+    final DateTime? date = _selectedDate;
+    final TimeOfDay? time = _selectedTime;
+
+    if (date == null || time == null) {
+      return null;
+    }
+
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  String _formatPrice(int? price) {
+    final int value = price ?? 0;
+    final String digits = value.toString();
+    final StringBuffer result = StringBuffer();
+
+    for (int index = 0;
+    index < digits.length;
+    index++) {
+      result.write(digits[index]);
+
+      final int remaining =
+          digits.length - index - 1;
+
+      if (remaining > 0 &&
+          remaining % 3 == 0) {
+        result.write('.');
+      }
+    }
+
+    return '${result.toString()} đ';
+  }
+
+  Future<void> _submitBooking() async {
+    FocusScope.of(context).unfocus();
+
+    if (_formKey.currentState?.validate() != true) {
+      return;
+    }
+
+    final HomeServiceModel? service =
+        _selectedService;
+
+    final ProviderModel? provider =
+        _selectedProvider;
+
+    final int? serviceId = service?.id;
+    final int? providerId = provider?.id;
+
+    if (service == null ||
+        serviceId == null ||
+        serviceId <= 0) {
+      _showMessage(
+        'Vui lòng chọn dịch vụ hợp lệ.',
+      );
+      return;
+    }
+
+    if (_selectedCategory == null) {
+      _showMessage(
+        'Dịch vụ chưa có danh mục hợp lệ.',
+      );
+      return;
+    }
+
+    if (provider == null ||
+        providerId == null ||
+        providerId <= 0) {
+      _showMessage(
+        'Vui lòng chọn nhân viên hợp lệ.',
+      );
+      return;
+    }
+
+    final DateTime? appointmentDateTime =
+    _getAppointmentDateTime();
+
+    if (appointmentDateTime == null) {
+      _showMessage(
+        'Vui lòng chọn ngày và giờ.',
+      );
+      return;
+    }
+
+    if (!appointmentDateTime
+        .isAfter(DateTime.now())) {
+      _showMessage(
+        'Thời gian đặt lịch phải lớn hơn thời gian hiện tại.',
+      );
+      return;
+    }
+
+    final String address =
+    _addressController.text.trim();
+
+    final String note =
+    _noteController.text.trim();
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final AppointmentModel appointment =
+      AppointmentModel(
+        userId: widget.userId,
+        serviceId: serviceId,
+        providerId: providerId,
+        bookDate: DateFormat(
+          'yyyy-MM-dd HH:mm',
+        ).format(appointmentDateTime),
+        address: address,
+        note: note,
+        status: 'PENDING',
+      );
+
+      await _databaseHelper.insertAppointment(
+        appointment,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (
+              BuildContext context,
+              ) {
+            return BookingSuccessPage(
+              serviceName:
+              service.name ?? 'Dịch vụ',
+              servicePrice:
+              (service.price ?? 0).toDouble(),
+              providerName: provider.name,
+              providerPhone: provider.phone,
+              dateTime: DateFormat(
+                'dd/MM/yyyy HH:mm',
+              ).format(appointmentDateTime),
+              address: address,
+              note: note,
+            );
+          },
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _resetForm();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Lỗi đặt lịch: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Không thể đặt lịch: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  void _resetForm() {
+    _addressController.clear();
+    _noteController.clear();
+
+    setState(() {
+      _selectedProvider = null;
+      _selectedDate = null;
+      _selectedTime = null;
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    double totalAmount = _calculateTotalAmount();
-    List<DateTime> days = List.generate(7, (i) => DateTime.now().add(Duration(days: i)));
-
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colors.green)),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Xác nhận đặt lịch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      backgroundColor:
+      const Color(0xFFF4F6F8),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionHeading('1. Lựa chọn dịch vụ thực hiện'),
-              _buildServiceDropdownSelector(),
-              const SizedBox(height: 20),
-              
-              _buildSectionHeading('2. Lựa chọn nhân viên đảm nhận'),
-              _buildProviderSelector(),
-              const SizedBox(height: 20),
-
-              _buildSectionHeading('Chọn ngày làm việc'),
-              _buildDateSelector(days),
-              const SizedBox(height: 20),
-              
-              _buildSectionHeading('Chọn khung giờ'),
-              _buildTimeSelector(),
-              const SizedBox(height: 20),
-              
-              _buildSectionHeading('Địa chỉ thực hiện'),
-              _buildAddressInput(),
-              const SizedBox(height: 20),
-              
-              _buildSectionHeading('Ghi chú chi tiết yêu cầu'),
-              _buildNoteInput(),
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomAction(totalAmount, days),
-    );
-  }
-
-  Widget _buildSectionHeading(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, left: 4),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16, 
-          fontWeight: FontWeight.bold, 
-          color: Colors.black87,
+        child: ListView(
+          padding:
+          const EdgeInsets.all(16),
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 18),
+            _buildMainCard(),
+            const SizedBox(height: 18),
+            _buildSubmitButton(),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildServiceDropdownSelector() {
+  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      width: double.infinity,
+      padding:
+      const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
+        color: Colors.green,
+        borderRadius:
+        BorderRadius.circular(14),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<HomeServiceModel>(
-          value: _selectedService,
-          isExpanded: true,
-          hint: const Text('Chọn dịch vụ cụ thể...'),
-          items: _services.map((service) {
-            return DropdownMenuItem<HomeServiceModel>(
-              value: service,
-              child: Text("${service.name ?? 'Dịch vụ'} (${service.price}k/giờ)"),
-            );
-          }).toList(),
-          onChanged: (newService) {
-            setState(() {
-              _selectedService = newService;
-              _selectedProvider = null; // Reset thợ khi dịch vụ thay đổi
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProviderSelector() {
-    if (_selectedService == null) {
-      return const Text(
-        'Vui lòng chọn dịch vụ để tìm kiếm thợ.', 
-        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-      );
-    }
-
-    final filtered = _filteredProviders;
-
-    if (filtered.isEmpty) {
-      return const Text(
-        'Không tìm thấy nhân viên nào trống lịch cho dịch vụ này.', 
-        style: TextStyle(color: Colors.redAccent, fontStyle: FontStyle.italic),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final provider = filtered[index];
-        bool isSelected = _selectedProvider?.id == provider.id;
-
-        return Card(
-          color: isSelected ? Colors.green.withValues(alpha: 0.05) : Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color: isSelected ? Colors.green : Colors.grey.shade300, 
-              width: isSelected ? 2 : 1,
+      child: const Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white,
+            child: Icon(
+              Icons.calendar_month,
+              color: Colors.green,
             ),
           ),
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.grey.shade200,
-              backgroundImage: provider.imageUrl.isNotEmpty ? NetworkImage(provider.imageUrl) : null,
-              child: provider.imageUrl.isEmpty ? const Icon(Icons.person, color: Colors.green) : null,
-            ),
-            title: Text(provider.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('SĐT: ${provider.phone} | Phụ phí: ${provider.pricePerHour.toStringAsFixed(0)}k/h'),
-            trailing: Icon(
-              isSelected ? Icons.check_circle : Icons.radio_button_off,
-              color: isSelected ? Colors.green : Colors.grey,
-            ),
-            onTap: () {
-              setState(() {
-                _selectedProvider = provider;
-              });
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDateSelector(List<DateTime> days) {
-    return SizedBox(
-      height: 75,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: days.length,
-        itemBuilder: (context, i) {
-          bool isSelected = _selectedDayIndex == i;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDayIndex = i),
-            child: Container(
-              width: 65,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.green : Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: isSelected ? Colors.green : Colors.grey.shade300),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('E').format(days[i]),
-                    style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontSize: 12),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Đặt lịch dịch vụ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight:
+                    FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "${days[i].day}",
-                    style: TextStyle(color: isSelected ? Colors.white : Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Chọn dịch vụ, nhân viên và thời gian phù hợp.',
+                  style: TextStyle(
+                    color: Colors.white70,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTimeSelector() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 3,
-      ),
-      itemCount: _timeSlots.length,
-      itemBuilder: (context, i) {
-        bool isSelected = _selectedTimeIndex == i;
-        return InkWell(
-          onTap: () => setState(() => _selectedTimeIndex = i),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.green.withValues(alpha: 0.1) : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isSelected ? Colors.green : Colors.grey.shade300, width: isSelected ? 2 : 1),
-            ),
-            child: Center(
-              child: Text(
-                _timeSlots[i],
-                style: TextStyle(color: isSelected ? Colors.green : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAddressInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextFormField(
-        controller: _addressController,
-        maxLines: 2,
-        decoration: const InputDecoration(
-          hintText: 'Vui lòng nhập địa chỉ cụ thể...',
-          contentPadding: EdgeInsets.all(12),
-          border: InputBorder.none,
-          prefixIcon: Icon(Icons.location_on, color: Colors.green),
-        ),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Không được bỏ trống địa chỉ thực hiện';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  Widget _buildNoteInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextFormField(
-        controller: _noteController,
-        maxLines: 3,
-        decoration: const InputDecoration(
-          hintText: 'Nhập các mô tả yêu cầu công việc chi tiết (nếu có)...',
-          contentPadding: EdgeInsets.all(12),
-          border: InputBorder.none,
-          prefixIcon: Icon(Icons.description, color: Colors.green),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomAction(double totalAmount, List<DateTime> days) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05), 
-            blurRadius: 5, 
-            offset: const Offset(0, -2),
           ),
         ],
       ),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    );
+  }
+
+  Widget _buildMainCard() {
+    return Card(
+      elevation: 1,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+        BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding:
+        const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Tổng thanh toán', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('${totalAmount.toStringAsFixed(0)}.000đ', style: const TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
+            _buildSectionTitle(
+              icon:
+              Icons.home_repair_service,
+              title: 'Thông tin dịch vụ',
             ),
-            ElevatedButton(
-              onPressed: () => _submitBooking(days, totalAmount),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Đặt lịch ngay', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            _buildServiceDropdown(),
+            const SizedBox(height: 14),
+            _buildCategoryField(),
+            if (_selectedService != null) ...[
+              const SizedBox(height: 14),
+              _buildProviderDropdown(),
+            ],
+            const SizedBox(height: 22),
+            const Divider(),
+            const SizedBox(height: 18),
+            _buildSectionTitle(
+              icon: Icons.schedule,
+              title: 'Thời gian thực hiện',
             ),
+            const SizedBox(height: 14),
+            _buildDateTimeFields(),
+            const SizedBox(height: 22),
+            const Divider(),
+            const SizedBox(height: 18),
+            _buildSectionTitle(
+              icon: Icons.location_on,
+              title: 'Thông tin liên hệ',
+            ),
+            const SizedBox(height: 14),
+            _buildAddressField(),
+            const SizedBox(height: 14),
+            _buildNoteField(),
+            const SizedBox(height: 18),
+            _buildPriceSummary(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle({
+    required IconData icon,
+    required String title,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: Colors.green,
+          size: 22,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: _isSubmitting
+            ? null
+            : _submitBooking,
+        style:
+        ElevatedButton.styleFrom(
+          backgroundColor:
+          Colors.green,
+          foregroundColor:
+          Colors.white,
+          shape:
+          RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(10),
+          ),
+        ),
+        icon: _isSubmitting
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child:
+          CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : const Icon(
+          Icons.check_circle_outline,
+        ),
+        label: Text(
+          _isSubmitting
+              ? 'Đang đặt lịch...'
+              : 'Xác nhận đặt lịch',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight:
+            FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    String? hint,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor:
+      const Color(0xFFF9FAFB),
+      border: OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(10),
+      ),
+      enabledBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: Colors.grey.shade300,
+        ),
+      ),
+      focusedBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(10),
+        borderSide:
+        const BorderSide(
+          color: Colors.green,
+          width: 1.4,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: Colors.red,
+        ),
+      ),
+      focusedErrorBorder:
+      OutlineInputBorder(
+        borderRadius:
+        BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.4,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceDropdown() {
+    return DropdownButtonFormField<
+        HomeServiceModel>(
+      value: _selectedService,
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Dịch vụ *',
+        icon:
+        Icons.home_repair_service,
+        hint: 'Chọn dịch vụ',
+      ),
+      items: _services.map(
+            (HomeServiceModel service) {
+          return DropdownMenuItem<
+              HomeServiceModel>(
+            value: service,
+            child: Text(
+              '${service.name ?? 'Dịch vụ'} - ${_formatPrice(service.price)}',
+              overflow:
+              TextOverflow.ellipsis,
+            ),
+          );
+        },
+      ).toList(),
+      onChanged: _isSubmitting
+          ? null
+          : _onServiceChanged,
+      validator: (_) {
+        final int? id =
+            _selectedService?.id;
+
+        if (_selectedService == null ||
+            id == null ||
+            id <= 0) {
+          return 'Vui lòng chọn dịch vụ';
+        }
+
+        return null;
+      },
+    );
+  }
+
+  Widget _buildCategoryField() {
+    return InputDecorator(
+      decoration: _inputDecoration(
+        label: 'Danh mục',
+        icon: Icons.category,
+      ),
+      child: Text(
+        _selectedCategory?.name ??
+            'Tự động theo dịch vụ',
+        style: TextStyle(
+          color: _selectedCategory == null
+              ? Colors.grey
+              : Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderDropdown() {
+    final List<ProviderModel>
+    providers = _availableProviders;
+
+    return DropdownButtonFormField<
+        ProviderModel>(
+      value: _selectedProvider,
+      isExpanded: true,
+      decoration: _inputDecoration(
+        label: 'Nhân viên *',
+        icon: Icons.person,
+        hint: providers.isEmpty
+            ? 'Dịch vụ này chưa có nhân viên'
+            : 'Chọn nhân viên',
+      ),
+      items: providers.map(
+            (ProviderModel provider) {
+          return DropdownMenuItem<
+              ProviderModel>(
+            value: provider,
+            child: Text(
+              '${provider.name} - ${provider.phone}',
+              overflow:
+              TextOverflow.ellipsis,
+            ),
+          );
+        },
+      ).toList(),
+      onChanged:
+      providers.isEmpty || _isSubmitting
+          ? null
+          : (ProviderModel? value) {
+        setState(() {
+          _selectedProvider =
+              value;
+        });
+      },
+      validator: (_) {
+        final int? id =
+            _selectedProvider?.id;
+
+        if (_selectedProvider == null ||
+            id == null ||
+            id <= 0) {
+          return 'Vui lòng chọn nhân viên';
+        }
+
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDateTimeFields() {
+    return LayoutBuilder(
+      builder: (
+          BuildContext context,
+          BoxConstraints constraints,
+          ) {
+        if (constraints.maxWidth < 500) {
+          return Column(
+            children: [
+              _buildDateField(),
+              const SizedBox(height: 14),
+              _buildTimeField(),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildDateField(),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildTimeField(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDateField() {
+    return InkWell(
+      onTap: _isSubmitting
+          ? null
+          : _pickDate,
+      borderRadius:
+      BorderRadius.circular(10),
+      child: InputDecorator(
+        decoration: _inputDecoration(
+          label: 'Ngày *',
+          icon:
+          Icons.calendar_today,
+        ),
+        child: Text(
+          _selectedDate == null
+              ? 'Chọn ngày'
+              : DateFormat(
+            'dd/MM/yyyy',
+          ).format(
+            _selectedDate!,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeField() {
+    return InkWell(
+      onTap: _isSubmitting
+          ? null
+          : _pickTime,
+      borderRadius:
+      BorderRadius.circular(10),
+      child: InputDecorator(
+        decoration: _inputDecoration(
+          label: 'Giờ *',
+          icon: Icons.access_time,
+        ),
+        child: Text(
+          _selectedTime == null
+              ? 'Chọn giờ'
+              : _selectedTime!
+              .format(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddressField() {
+    return TextFormField(
+      controller: _addressController,
+      enabled: !_isSubmitting,
+      maxLength: 150,
+      decoration: _inputDecoration(
+        label: 'Địa chỉ *',
+        icon: Icons.location_on,
+        hint:
+        'Nhập địa chỉ thực hiện dịch vụ',
+      ),
+      validator: (String? value) {
+        final String address =
+            value?.trim() ?? '';
+
+        if (address.isEmpty) {
+          return 'Vui lòng nhập địa chỉ';
+        }
+
+        if (address.length < 5) {
+          return 'Địa chỉ phải có ít nhất 5 ký tự';
+        }
+
+        return null;
+      },
+    );
+  }
+
+  Widget _buildNoteField() {
+    return TextFormField(
+      controller: _noteController,
+      enabled: !_isSubmitting,
+      maxLines: 3,
+      maxLength: 300,
+      decoration: _inputDecoration(
+        label: 'Ghi chú',
+        icon: Icons.note,
+        hint:
+        'Nhập yêu cầu thêm nếu có',
+      ).copyWith(
+        alignLabelWithHint: true,
+      ),
+    );
+  }
+
+  Widget _buildPriceSummary() {
+    return Container(
+      padding:
+      const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color:
+        Colors.green.shade50,
+        border: Border.all(
+          color:
+          Colors.green.shade200,
+        ),
+        borderRadius:
+        BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.payments,
+            color: Colors.green,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Giá dịch vụ',
+              style: TextStyle(
+                fontWeight:
+                FontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            _formatPrice(
+              _selectedService?.price,
+            ),
+            style: const TextStyle(
+              color: Colors.green,
+              fontSize: 18,
+              fontWeight:
+              FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

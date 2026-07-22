@@ -1,16 +1,18 @@
 class AppointmentModel {
   int? id;
-  int userId;        // ID người đặt
-  int serviceId;     // ID dịch vụ được đặt
-  String bookDate;   // Ngày giờ làm việc (định dạng String để dễ lưu trữ)
-  String address;    // Địa chỉ làm việc
-  String note;       // Ghi chú thêm
-  String status;     // Trạng thái: "PENDING" (Chờ), "CONFIRMED" (Đã duyệt), "CANCELLED" (Hủy)
+  int userId;
+  int serviceId;
+  int? providerId;
+  String bookDate;
+  String address;
+  String note;
+  String status;
 
   AppointmentModel({
     this.id,
     required this.userId,
     required this.serviceId,
+    this.providerId,
     required this.bookDate,
     required this.address,
     required this.note,
@@ -22,6 +24,7 @@ class AppointmentModel {
       'id': id,
       'userid': userId,
       'serviceid': serviceId,
+      'providerid': providerId,
       'bookdate': bookDate,
       'address': address,
       'note': note,
@@ -29,15 +32,24 @@ class AppointmentModel {
     };
   }
 
-  factory AppointmentModel.fromMap(Map<String, dynamic> map) {
+  factory AppointmentModel.fromMap(
+      Map<String, dynamic> map,
+      ) {
     return AppointmentModel(
-      id: map['id'],
-      userId: map['userid'] ?? 0,
-      serviceId: map['serviceid'] ?? 0,
-      bookDate: map['bookdate'] ?? '',
-      address: map['address'] ?? '',
-      note: map['note'] ?? '',
-      status: map['status'] ?? 'PENDING',
+      id: map['id'] as int?,
+      userId:
+      (map['userid'] as num?)?.toInt() ?? 0,
+      serviceId:
+      (map['serviceid'] as num?)?.toInt() ?? 0,
+      providerId:
+      (map['providerid'] as num?)?.toInt(),
+      bookDate:
+      map['bookdate']?.toString() ?? '',
+      address:
+      map['address']?.toString() ?? '',
+      note: map['note']?.toString() ?? '',
+      status:
+      map['status']?.toString() ?? 'PENDING',
     );
   }
 }

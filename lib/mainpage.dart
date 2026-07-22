@@ -1,18 +1,479 @@
+// import 'package:flutter/material.dart';
+
+// import 'package:do_an/data/helper/db_helper.dart';
+// import 'package:do_an/data/model/home_service.dart';
+// import 'package:do_an/data/model/user_model.dart';
+
+// import 'package:do_an/page/user/booking/booking_widget.dart';
+// import 'package:do_an/page/user/history/user_appointments.dart';
+// import 'package:do_an/page/user/homewidget.dart';
+// import 'package:do_an/page/user/user_profile.dart';
+
+// class MainPage extends StatefulWidget {
+//   final int userId;
+//   final String role;
+
+//   const MainPage({
+//     super.key,
+//     required this.userId,
+//     required this.role,
+//   });
+
+//   @override
+//   State<MainPage> createState() =>
+//       _MainPageState();
+// }
+
+// class _MainPageState extends State<MainPage> {
+//   int _selectedIndex = 0;
+
+//   final GlobalKey<ScaffoldState> _scaffoldKey =
+//       GlobalKey<ScaffoldState>();
+
+//   late Future<UserModel?> _userFuture;
+
+//   @override
+//   void initState() {
+//     super.initState();
+
+//     // Lấy thông tin người dùng theo userId từ SQLite
+//     _userFuture = _getUserById();
+//   }
+
+//   Future<UserModel?> _getUserById() async {
+//     return DatabaseHelper().getUserById(
+//       widget.userId,
+//     );
+//   }
+
+//   // Hiển thị hộp thoại xác nhận trước khi đăng xuất
+//   Future<void> _confirmLogout() async {
+//     final bool? shouldLogout =
+//         await showDialog<bool>(
+//       context: context,
+//       builder: (dialogContext) {
+//         return AlertDialog(
+//           title: const Text(
+//             'Xác nhận đăng xuất',
+//           ),
+//           content: const Text(
+//             'Bạn có chắc chắn muốn đăng xuất không?',
+//           ),
+//           actions: [
+//             TextButton(
+//               onPressed: () {
+//                 Navigator.pop(
+//                   dialogContext,
+//                   false,
+//                 );
+//               },
+//               child: const Text('Hủy'),
+//             ),
+//             ElevatedButton(
+//               onPressed: () {
+//                 Navigator.pop(
+//                   dialogContext,
+//                   true,
+//                 );
+//               },
+//               style: ElevatedButton.styleFrom(
+//                 backgroundColor: Colors.red,
+//                 foregroundColor: Colors.white,
+//               ),
+//               child: const Text('Đăng xuất'),
+//             ),
+//           ],
+//         );
+//       },
+//     );
+
+//     if (shouldLogout != true || !mounted) {
+//       return;
+//     }
+
+//     // Quay về LoginPage và xóa toàn bộ lịch sử màn hình
+//     Navigator.of(context).pushNamedAndRemoveUntil(
+//       '/login',
+//       (route) => false,
+//     );
+//   }
+
+//   List<BottomNavigationBarItem>
+//       _buildBottomNavigationItems() {
+//     return const [
+//       BottomNavigationBarItem(
+//         icon: Icon(Icons.home_outlined),
+//         activeIcon: Icon(Icons.home),
+//         label: 'Trang chủ',
+//       ),
+//       BottomNavigationBarItem(
+//         icon: Icon(Icons.calendar_month_outlined),
+//         activeIcon: Icon(Icons.calendar_month),
+//         label: 'Đặt lịch',
+//       ),
+//       BottomNavigationBarItem(
+//         icon: Icon(Icons.history_outlined),
+//         activeIcon: Icon(Icons.history),
+//         label: 'Lịch sử',
+//       ),
+//       BottomNavigationBarItem(
+//         icon: Icon(Icons.person_outline),
+//         activeIcon: Icon(Icons.person),
+//         label: 'Tài khoản',
+//       ),
+//     ];
+//   }
+
+//   Widget _buildDrawerItem({
+//     required int index,
+//     required IconData icon,
+//     required String title,
+//   }) {
+//     final bool isSelected =
+//         _selectedIndex == index;
+
+//     return ListTile(
+//       leading: Icon(
+//         icon,
+//         color: isSelected
+//             ? Colors.green
+//             : Colors.grey,
+//       ),
+//       title: Text(
+//         title,
+//         style: TextStyle(
+//           color: isSelected
+//               ? Colors.green
+//               : Colors.black87,
+//           fontWeight: isSelected
+//               ? FontWeight.bold
+//               : FontWeight.normal,
+//         ),
+//       ),
+//       selected: isSelected,
+//       selectedTileColor:
+//           Colors.green.withValues(alpha: 0.1),
+//       onTap: () {
+//         setState(() {
+//           _selectedIndex = index;
+//         });
+
+//         // Chỉ đóng Drawer sau khi chọn mục
+//         Navigator.pop(context);
+//       },
+//     );
+//   }
+
+//   Widget _buildDrawer(
+//     UserModel currentUser,
+//   ) {
+//     return Drawer(
+//       child: SafeArea(
+//         child: Column(
+//           children: [
+//             UserAccountsDrawerHeader(
+//               decoration: const BoxDecoration(
+//                 color: Colors.green,
+//               ),
+//               accountName: Text(
+//                 currentUser.fullName.isEmpty
+//                     ? 'Người dùng'
+//                     : currentUser.fullName,
+//                 style: const TextStyle(
+//                   fontWeight: FontWeight.bold,
+//                   fontSize: 16,
+//                 ),
+//               ),
+//               accountEmail: Text(
+//                 currentUser.email.isEmpty
+//                     ? currentUser.username
+//                     : currentUser.email,
+//               ),
+//               currentAccountPicture:
+//                   CircleAvatar(
+//                 backgroundColor: Colors.white,
+//                 backgroundImage:
+//                     currentUser.avatar.isNotEmpty
+//                         ? NetworkImage(
+//                             currentUser.avatar,
+//                           )
+//                         : null,
+//                 child:
+//                     currentUser.avatar.isEmpty
+//                         ? const Icon(
+//                             Icons.person,
+//                             color: Colors.green,
+//                             size: 38,
+//                           )
+//                         : null,
+//               ),
+//             ),
+//             _buildDrawerItem(
+//               index: 0,
+//               icon: Icons.home,
+//               title: 'Trang chủ',
+//             ),
+//             _buildDrawerItem(
+//               index: 1,
+//               icon: Icons.calendar_month,
+//               title: 'Đặt lịch',
+//             ),
+//             _buildDrawerItem(
+//               index: 2,
+//               icon: Icons.history,
+//               title: 'Lịch sử',
+//             ),
+//             _buildDrawerItem(
+//               index: 3,
+//               icon: Icons.person,
+//               title: 'Tài khoản',
+//             ),
+//             const Spacer(),
+//             const Divider(),
+//             ListTile(
+//               leading: const Icon(
+//                 Icons.logout,
+//                 color: Colors.red,
+//               ),
+//               title: const Text(
+//                 'Đăng xuất',
+//                 style: TextStyle(
+//                   color: Colors.red,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//               onTap: _confirmLogout,
+//             ),
+//             const SizedBox(height: 16),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     // Dịch vụ mặc định truyền vào trang đặt lịch
+//     final HomeServiceModel defaultService =
+//         HomeServiceModel(
+//       id: 0,
+//       name: 'Chọn dịch vụ',
+//       price: 0,
+//     );
+
+//     return FutureBuilder<UserModel?>(
+//       future: _userFuture,
+//       builder: (context, snapshot) {
+//         // Dùng dữ liệu mặc định trong lúc SQLite đang tải
+//         final UserModel currentUser =
+//             snapshot.data ??
+//                 UserModel(
+//                   id: widget.userId,
+//                   username:
+//                       'user_${widget.userId}',
+//                   password: '',
+//                   fullName: 'Người dùng',
+//                   phone: '',
+//                   role: widget.role,
+//                   email: '',
+//                   avatar: '',
+//                 );
+
+//         final List<Widget> userPages = [
+//           const HomeWidget(),
+//           BookingWidget(
+//             userId: widget.userId,
+//             service: defaultService,
+//           ),
+//           UserAppointments(
+//             userId: widget.userId,
+//           ),
+//           // UserProfile(
+//           //   user: currentUser,
+//           // ),
+//           const UserProfilePage(),
+//         ];
+
+//         return Scaffold(
+//           key: _scaffoldKey,
+//           appBar: AppBar(
+//             title: const Text(
+//               'Ứng dụng dịch vụ gia đình',
+//               style: TextStyle(
+//                 color: Colors.white,
+//                 fontWeight: FontWeight.bold,
+//                 fontSize: 18,
+//               ),
+//             ),
+//             centerTitle: true,
+//             backgroundColor: Colors.green,
+//             elevation: 2,
+//             leading: IconButton(
+//               icon: const Icon(
+//                 Icons.menu,
+//                 color: Colors.white,
+//                 size: 28,
+//               ),
+//               onPressed: () {
+//                 _scaffoldKey.currentState
+//                     ?.openDrawer();
+//               },
+//             ),
+//           ),
+//           drawer: _buildDrawer(
+//             currentUser,
+//           ),
+//           body: IndexedStack(
+//             index: _selectedIndex,
+//             children: userPages,
+//           ),
+//           bottomNavigationBar:
+//               BottomNavigationBar(
+//             currentIndex: _selectedIndex,
+//             type:
+//                 BottomNavigationBarType.fixed,
+//             selectedItemColor: Colors.green,
+//             unselectedItemColor: Colors.grey,
+//             backgroundColor:
+//                 Colors.grey.shade50,
+//             onTap: (index) {
+//               setState(() {
+//                 _selectedIndex = index;
+//               });
+//             },
+//             items:
+//                 _buildBottomNavigationItems(),
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
+
+
+// //---------------------------------
+// import 'package:flutter/material.dart';
+// import 'package:do_an/data/helper/db_helper.dart';
+// import 'package:do_an/data/model/home_service.dart';
+// import 'package:do_an/data/model/user_model.dart';
+
+// import 'package:do_an/page/user/booking/booking_widget.dart';
+// import 'package:do_an/page/user/history/user_appointments.dart';
+// import 'package:do_an/page/user/homewidget.dart';
+// import 'package:do_an/page/user/user_profile.dart';
+
+// class MainPage extends StatefulWidget {
+//   final int userId;
+//   final String role;
+
+//   const MainPage({
+//     super.key,
+//     required this.userId,
+//     required this.role,
+//   });
+
+//   @override
+//   State<MainPage> createState() => _MainPageState();
+// }
+
+// class _MainPageState extends State<MainPage> {
+//   int _selectedIndex = 0;
+//   late Future<UserModel?> _userFuture;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _loadUserData();
+//   }
+
+//   void _loadUserData() {
+//     setState(() {
+//       _userFuture = DatabaseHelper().getUserById(widget.userId);
+//     });
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return FutureBuilder<UserModel?>(
+//       future: _userFuture,
+//       builder: (context, snapshot) {
+//         if (snapshot.connectionState == ConnectionState.waiting) {
+//           return const Scaffold(
+//             body: Center(child: CircularProgressIndicator(color: Colors.green)),
+//           );
+//         }
+
+//         final UserModel currentUser = snapshot.data ??
+//             UserModel(
+//               id: widget.userId,
+//               username: 'user_${widget.userId}',
+//               password: '',
+//               fullName: 'Người dùng',
+//               phone: '',
+//               role: widget.role,
+//               email: '',
+//               avatar: '',
+//             );
+
+//         final List<Widget> userPages = [
+//           const HomeWidget(),
+//           BookingWidget(
+//             userId: widget.userId,
+//             service: HomeServiceModel(id: 0, name: 'Chọn dịch vụ', price: 0),
+//           ),
+//           UserAppointments(userId: widget.userId),
+//           UserProfilePage(
+//             user: currentUser,
+//             onProfileUpdated: _loadUserData,
+//           ),
+//         ];
+
+//         return Scaffold(
+//           body: IndexedStack(
+//             index: _selectedIndex,
+//             children: userPages,
+//           ),
+//           bottomNavigationBar: BottomNavigationBar(
+//             currentIndex: _selectedIndex,
+//             type: BottomNavigationBarType.fixed,
+//             selectedItemColor: Colors.green,
+//             unselectedItemColor: Colors.grey,
+//             onTap: (index) {
+//               setState(() {
+//                 _selectedIndex = index;
+//               });
+//             },
+//             items: const [
+//               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
+//               BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Đặt lịch'),
+//               BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Lịch sử'),
+//               BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Tài khoản'),
+//             ],
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
+//--------
 import 'package:flutter/material.dart';
-import 'package:do_an/page/user/booking/booking_widget.dart'; 
+
+import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/home_service.dart';
-import 'package:do_an/page/user/homewidget.dart'; 
-import 'package:do_an/page/user/history/user_appointments.dart'; 
-import 'package:do_an/page/user/user_profile.dart'; 
-import 'package:do_an/data/model/user_model.dart'; 
+import 'package:do_an/data/model/user_model.dart';
+
+import 'package:do_an/page/user/booking/booking_widget.dart';
+import 'package:do_an/page/user/history/user_appointments.dart';
+import 'package:do_an/page/user/home/homewidget.dart';
+import 'package:do_an/page/user/account/user_profile.dart';
 
 class MainPage extends StatefulWidget {
   final int userId;
   final String role;
 
   const MainPage({
-    super.key, 
-    required this.userId, 
+    super.key,
+    required this.userId,
     required this.role,
   });
 
@@ -24,65 +485,76 @@ class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // FIX TẠI ĐÂY: Khởi tạo trực tiếp hàm callback ngay khi khai báo biến để tránh lỗi LateInitializationError
-  late final Future<UserModel?> _userDataFuture = _getUserData();
+  late Future<UserModel?> _userFuture;
 
-  // Trả về null nếu chưa có dữ liệu thực tế
-  Future<UserModel?> _getUserData() async {
-    // Sau này bạn gọi DatabaseHelper ở đây, ví dụ:
-    // return await DatabaseHelper.instance.getUserById(widget.userId);
-    return null; 
-  }
+  // Biến lưu trữ dịch vụ vừa được chọn từ Trang chủ
+  HomeServiceModel? _selectedService;
 
   @override
   void initState() {
     super.initState();
-    // Không cần gán _userDataFuture ở đây nữa để tránh xung đột vòng đời (lifecycle)
+    _loadUserData();
   }
 
-  List<BottomNavigationBarItem> _buildUserBottomItems() {
-    return const [
-      BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Trang chủ'),
-      BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Đặt lịch'),
-      BottomNavigationBarItem(icon: Icon(Icons.history_outlined), activeIcon: Icon(Icons.history), label: 'Lịch sử'),
-      BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Tài khoản'),
-    ];
+  // Tải lại thông tin người dùng từ CSDL SQLite
+  void _loadUserData() {
+    setState(() {
+      _userFuture = DatabaseHelper().getUserById(widget.userId);
+    });
   }
 
-  List<BottomNavigationBarItem> _buildAdminBottomItems() {
-    return const [
-      BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Tổng quan'),
-      BottomNavigationBarItem(icon: Icon(Icons.cleaning_services_outlined), activeIcon: Icon(Icons.cleaning_services), label: 'Dịch vụ'),
-      BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Tài khoản'),
-    ];
+  // Hộp thoại xác nhận đăng xuất
+  Future<void> _confirmLogout() async {
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Xác nhận đăng xuất'),
+          content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true || !mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false,
+    );
   }
 
-  List<Widget> _buildUserNavItems() {
-    return [
-      _buildDrawerTile(0, Icons.home, 'Trang chủ'),
-      _buildDrawerTile(1, Icons.calendar_month, 'Đặt lịch'),
-      _buildDrawerTile(2, Icons.history, 'Lịch sử'),
-      _buildDrawerTile(3, Icons.person, 'Tài khoản'),
-    ];
-  }
+  // Widget tạo từng mục trong Drawer
+  Widget _buildDrawerItem({
+    required int index,
+    required IconData icon,
+    required String title,
+  }) {
+    final bool isSelected = _selectedIndex == index;
 
-  List<Widget> _buildAdminNavItems() {
-    return [
-      _buildDrawerTile(0, Icons.dashboard, 'Tổng quan'),
-      _buildDrawerTile(1, Icons.cleaning_services, 'Dịch vụ'),
-      _buildDrawerTile(2, Icons.person, 'Tài khoản'),
-    ];
-  }
-
-  Widget _buildDrawerTile(int index, IconData icon, String title) {
-    bool isSelected = _selectedIndex == index;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? Colors.green : Colors.grey),
+      leading: Icon(
+        icon,
+        color: isSelected ? Colors.green : Colors.grey[700],
+      ),
       title: Text(
-        title, 
+        title,
         style: TextStyle(
-          color: isSelected ? Colors.green : Colors.black87, 
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+          color: isSelected ? Colors.green : Colors.black87,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
       selected: isSelected,
@@ -91,123 +563,216 @@ class _MainPageState extends State<MainPage> {
         setState(() {
           _selectedIndex = index;
         });
-        Navigator.pop(context);
+        Navigator.pop(context); // Đóng Drawer
       },
     );
   }
 
+  // Widget hiển thị Menu Drawer bên trái
+  Widget _buildDrawer(UserModel currentUser) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(
+                color: Colors.green,
+              ),
+              accountName: Text(
+                currentUser.fullName.isEmpty ? 'Người dùng' : currentUser.fullName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              accountEmail: Text(
+                currentUser.email.isEmpty ? currentUser.username : currentUser.email,
+              ),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                backgroundImage: currentUser.avatar.isNotEmpty
+                    ? NetworkImage(currentUser.avatar)
+                    : null,
+                child: currentUser.avatar.isEmpty
+                    ? const Icon(
+                        Icons.person,
+                        color: Colors.green,
+                        size: 38,
+                      )
+                    : null,
+              ),
+            ),
+            _buildDrawerItem(
+              index: 0,
+              icon: Icons.home,
+              title: 'Trang chủ',
+            ),
+            _buildDrawerItem(
+              index: 1,
+              icon: Icons.calendar_month,
+              title: 'Đặt lịch',
+            ),
+            _buildDrawerItem(
+              index: 2,
+              icon: Icons.history,
+              title: 'Lịch sử',
+            ),
+            _buildDrawerItem(
+              index: 3,
+              icon: Icons.person,
+              title: 'Tài khoản',
+            ),
+            const Spacer(),
+            const Divider(),
+            ListTile(
+              leading: const Icon(
+                Icons.logout,
+                color: Colors.red,
+              ),
+              title: const Text(
+                'Đăng xuất',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: _confirmLogout,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<BottomNavigationBarItem> _buildBottomNavigationItems() {
+    return const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.home_outlined),
+        activeIcon: Icon(Icons.home),
+        label: 'Trang chủ',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.calendar_month_outlined),
+        activeIcon: Icon(Icons.calendar_month),
+        label: 'Đặt lịch',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.history_outlined),
+        activeIcon: Icon(Icons.history),
+        label: 'Lịch sử',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.person_outline),
+        activeIcon: Icon(Icons.person),
+        label: 'Tài khoản',
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isAdmin = widget.role == 'ADMIN';
-
-    final defaultService = HomeServiceModel(
+    final HomeServiceModel defaultService = HomeServiceModel(
       id: 0,
       name: 'Chọn dịch vụ',
       price: 0,
     );
 
     return FutureBuilder<UserModel?>(
-      future: _userDataFuture,
+      future: _userFuture,
       builder: (context, snapshot) {
-        // Khởi tạo UserModel mặc định nếu snapshot trả về null hoặc đang loading
-        final UserModel currentUser = snapshot.data ?? UserModel(
-          id: widget.userId,
-          username: 'guest_${widget.userId}',
-          password: '',
-          fullName: 'Người dùng',
-          phone: '',
-          role: widget.role,
-          email: 'chua_co_email@domain.com',
-          avatar: '',
-        );
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.green),
+            ),
+          );
+        }
 
-        final List<Widget> userScreens = [
-          const HomeWidget(), 
-          BookingWidget(      
-            userId: widget.userId,
-            service: defaultService,
+        final UserModel currentUser = snapshot.data ??
+            UserModel(
+              id: widget.userId,
+              username: 'user_${widget.userId}',
+              password: '',
+              fullName: 'Người dùng',
+              phone: '',
+              role: widget.role,
+              email: '',
+              avatar: '',
+            );
+
+        // Danh sách màn hình trong ứng dụng
+        final List<Widget> userPages = [
+          // 1. Trang chủ: Nhận sự kiện chọn dịch vụ để nhảy sang tab Đặt lịch
+          HomeWidget(
+            onServiceSelected: (service) {
+              setState(() {
+                _selectedService = service;
+                _selectedIndex = 1; // Đổi sang tab Đặt lịch (index = 1)
+              });
+            },
           ),
-          UserAppointments(userId: widget.userId), 
-          UserProfile(user: currentUser),     
-        ];
 
-        final List<Widget> adminScreens = [
-          const SizedBox.shrink(), 
-          const SizedBox.shrink(),
-          const SizedBox.shrink(),
-        ];
+          // 2. Trang Đặt lịch: Hiển thị dịch vụ vừa được chọn từ Trang chủ
+          BookingWidget(
+            userId: widget.userId,
+            service: _selectedService ?? defaultService,
+          ),
 
-        final List<Widget> currentScreens = isAdmin ? adminScreens : userScreens;
+          // 3. Trang Lịch sử cuộc hẹn
+          UserAppointments(
+            userId: widget.userId,
+          ),
+
+          // 4. Trang Hồ sơ cá nhân
+          UserProfilePage(
+            user: currentUser,
+            onProfileUpdated: _loadUserData,
+          ),
+        ];
 
         return Scaffold(
           key: _scaffoldKey,
           appBar: AppBar(
             title: const Text(
-              'Ứng dụng dịch vụ gia đình',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+              'Ứng Dụng Dịch Vụ Gia Đình',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
-            backgroundColor: Colors.green,
             centerTitle: true,
+            backgroundColor: Colors.green,
             elevation: 2,
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 28), 
+              icon: const Icon(
+                Icons.menu,
+                color: Colors.white,
+                size: 28,
+              ),
               onPressed: () {
-                _scaffoldKey.currentState?.openDrawer(); 
+                _scaffoldKey.currentState?.openDrawer();
               },
             ),
           ),
-          drawer: Drawer(
-            child: Column(
-              children: [
-                UserAccountsDrawerHeader(
-                  decoration: const BoxDecoration(color: Colors.green),
-                  accountName: Text(
-                    currentUser.fullName.isEmpty ? 'Chưa cập nhật' : currentUser.fullName, 
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  accountEmail: Text(currentUser.email.isEmpty ? 'Chưa cập nhật email' : currentUser.email),
-                  currentAccountPicture: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    backgroundImage: currentUser.avatar.isNotEmpty ? NetworkImage(currentUser.avatar) : null,
-                    child: currentUser.avatar.isEmpty
-                        ? Icon(isAdmin ? Icons.admin_panel_settings : Icons.person, color: Colors.green, size: 35)
-                        : null,
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: isAdmin ? _buildAdminNavItems() : _buildUserNavItems(),
-                  ),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Đăng xuất', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          drawer: _buildDrawer(currentUser),
           body: IndexedStack(
             index: _selectedIndex,
-            children: currentScreens,
+            children: userPages,
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _selectedIndex,
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: Colors.green,
+            unselectedItemColor: Colors.grey,
+            backgroundColor: Colors.grey.shade50,
             onTap: (index) {
               setState(() {
                 _selectedIndex = index;
               });
             },
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: Colors.green,
-            unselectedItemColor: Colors.grey,
-            backgroundColor: Colors.grey.shade50,
-            items: isAdmin ? _buildAdminBottomItems() : _buildUserBottomItems(),
+            items: _buildBottomNavigationItems(),
           ),
         );
       },
