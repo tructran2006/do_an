@@ -1,0 +1,691 @@
+import 'package:flutter/material.dart';
+
+import 'package:do_an/data/helper/db_helper.dart';
+
+class AdminProvidersPage extends StatefulWidget {
+  const AdminProvidersPage({super.key});
+
+  @override
+  State<AdminProvidersPage> createState() =>
+      _AdminProvidersPageState();
+}
+
+class _AdminProvidersPageState
+    extends State<AdminProvidersPage> {
+  final DatabaseHelper _databaseHelper =
+  DatabaseHelper();
+
+  final TextEditingController _searchController =
+  TextEditingController();
+
+  List<Map<String, dynamic>> _providers = [];
+
+  bool _isLoading = true;
+
+  String _searchKeyword = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProviders();
+  }
+
+  Future<void> _loadProviders() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      final providers =
+      await _databaseHelper.getAdminProviders();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _providers = providers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không thể tải danh sách nhân viên: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredProviders {
+    final keyword =
+    _searchKeyword.trim().toLowerCase();
+
+    final providers =
+    List<Map<String, dynamic>>.from(
+      _providers,
+    );
+
+    if (keyword.isEmpty) {
+      providers.sort((a, b) {
+        final nameA =
+            a['name']?.toString().toLowerCase() ??
+                '';
+
+        final nameB =
+            b['name']?.toString().toLowerCase() ??
+                '';
+
+        return nameA.compareTo(nameB);
+      });
+
+      return providers;
+    }
+
+    final filteredProviders =
+    providers.where((provider) {
+      final name =
+          provider['name']
+              ?.toString()
+              .toLowerCase() ??
+              '';
+
+      return name.contains(keyword);
+    }).toList();
+
+    filteredProviders.sort((a, b) {
+      final nameA =
+          a['name']?.toString().toLowerCase() ??
+              '';
+
+      final nameB =
+          b['name']?.toString().toLowerCase() ??
+              '';
+
+      final startsWithA =
+      nameA.startsWith(keyword);
+
+      final startsWithB =
+      nameB.startsWith(keyword);
+
+      if (startsWithA && !startsWithB) {
+        return -1;
+      }
+
+      if (!startsWithA && startsWithB) {
+        return 1;
+      }
+
+      return nameA.compareTo(nameB);
+    });
+
+    return filteredProviders;
+  }
+
+  Future<void> _showProviderDialog({
+    Map<String, dynamic>? provider,
+  }) async {
+    final bool isEditing = provider != null;
+
+    final nameController = TextEditingController(
+      text: provider?['name']?.toString() ?? '',
+    );
+
+    final phoneController = TextEditingController(
+      text: provider?['phone']?.toString() ?? '',
+    );
+
+    final priceController = TextEditingController(
+      text:
+      provider?['price_per_hour']?.toString() ??
+          '',
+    );
+
+    final imageController = TextEditingController(
+      text:
+      provider?['image_url']?.toString() ?? '',
+    );
+
+    int? selectedServiceId =
+    provider?['service_id'] as int?;
+
+    try {
+      final services =
+      await _databaseHelper.getAdminServices();
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (
+                dialogContext,
+                setDialogState,
+                ) {
+              return AlertDialog(
+                title: Text(
+                  isEditing
+                      ? 'Sửa nhân viên'
+                      : 'Thêm nhân viên',
+                ),
+                content: SizedBox(
+                  width: 500,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize:
+                      MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller:
+                          nameController,
+                          decoration:
+                          const InputDecoration(
+                            labelText:
+                            'Tên nhân viên *',
+                            prefixIcon:
+                            Icon(Icons.person),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller:
+                          phoneController,
+                          keyboardType:
+                          TextInputType.phone,
+                          decoration:
+                          const InputDecoration(
+                            labelText:
+                            'Số điện thoại *',
+                            prefixIcon:
+                            Icon(Icons.phone),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller:
+                          priceController,
+                          keyboardType:
+                          const TextInputType
+                              .numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration:
+                          const InputDecoration(
+                            labelText:
+                            'Giá theo giờ *',
+                            prefixIcon:
+                            Icon(Icons.payments),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller:
+                          imageController,
+                          decoration:
+                          const InputDecoration(
+                            labelText:
+                            'Đường dẫn ảnh',
+                            prefixIcon:
+                            Icon(Icons.image),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<int>(
+                          initialValue:
+                          selectedServiceId,
+                          decoration:
+                          const InputDecoration(
+                            labelText:
+                            'Dịch vụ phụ trách *',
+                            prefixIcon: Icon(
+                              Icons.cleaning_services,
+                            ),
+                          ),
+                          items: services.map(
+                                (service) {
+                              return DropdownMenuItem<
+                                  int>(
+                                value:
+                                service['id'] as int,
+                                child: Text(
+                                  service['name']
+                                      .toString(),
+                                ),
+                              );
+                            },
+                          ).toList(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedServiceId =
+                                  value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        dialogContext,
+                      );
+                    },
+                    child: const Text('Hủy'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final name =
+                      nameController.text.trim();
+
+                      final phone =
+                      phoneController.text.trim();
+
+                      final price =
+                      double.tryParse(
+                        priceController.text.trim(),
+                      );
+
+                      if (name.isEmpty ||
+                          phone.isEmpty ||
+                          price == null ||
+                          selectedServiceId ==
+                              null) {
+                        ScaffoldMessenger.of(
+                          dialogContext,
+                        ).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Vui lòng nhập đầy đủ thông tin',
+                            ),
+                          ),
+                        );
+
+                        return;
+                      }
+
+                      try {
+                        if (isEditing) {
+                          await _databaseHelper
+                              .updateProvider(
+                            id:
+                            provider['id'] as int,
+                            name: name,
+                            imageUrl:
+                            imageController.text
+                                .trim(),
+                            phone: phone,
+                            pricePerHour: price,
+                            serviceId:
+                            selectedServiceId!,
+                          );
+                        } else {
+                          await _databaseHelper
+                              .addProvider(
+                            name: name,
+                            imageUrl:
+                            imageController.text
+                                .trim(),
+                            phone: phone,
+                            pricePerHour: price,
+                            serviceId:
+                            selectedServiceId!,
+                          );
+                        }
+
+                        if (!dialogContext.mounted) {
+                          return;
+                        }
+
+                        Navigator.pop(
+                          dialogContext,
+                        );
+
+                        await _loadProviders();
+                      } catch (e) {
+                        if (!dialogContext.mounted) {
+                          return;
+                        }
+
+                        ScaffoldMessenger.of(
+                          dialogContext,
+                        ).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Không thể lưu nhân viên: $e',
+                            ),
+                            backgroundColor:
+                            Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    child: Text(
+                      isEditing ? 'Lưu' : 'Thêm',
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      nameController.dispose();
+      phoneController.dispose();
+      priceController.dispose();
+      imageController.dispose();
+    }
+  }
+
+  Future<void> _deleteProvider(
+      Map<String, dynamic> provider,
+      ) async {
+    final bool? confirm =
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title:
+          const Text('Xác nhận xóa'),
+          content: Text(
+            'Bạn có chắc muốn xóa nhân viên '
+                '"${provider['name']}" không?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              style:
+              ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Xóa'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) {
+      return;
+    }
+
+    try {
+      await _databaseHelper.deleteProvider(
+        provider['id'] as int,
+      );
+
+      await _loadProviders();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Không thể xóa nhân viên: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredProviders =
+        _filteredProviders;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              8,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchKeyword = value;
+                });
+              },
+              decoration: InputDecoration(
+                hintText:
+                'Tìm kiếm theo tên nhân viên',
+                prefixIcon:
+                const Icon(Icons.search),
+                suffixIcon:
+                _searchKeyword.isNotEmpty
+                    ? IconButton(
+                  tooltip:
+                  'Xóa tìm kiếm',
+                  onPressed: () {
+                    _searchController
+                        .clear();
+
+                    setState(() {
+                      _searchKeyword = '';
+                    });
+                  },
+                  icon: const Icon(
+                    Icons.close,
+                  ),
+                )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius:
+                  BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+              child:
+              CircularProgressIndicator(),
+            )
+                : _providers.isEmpty
+                ? const Center(
+              child: Text(
+                'Chưa có nhân viên nào',
+              ),
+            )
+                : filteredProviders.isEmpty
+                ? RefreshIndicator(
+              onRefresh:
+              _loadProviders,
+              child: ListView(
+                physics:
+                const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 180,
+                  ),
+                  Center(
+                    child: Text(
+                      'Không tìm thấy nhân viên phù hợp',
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : RefreshIndicator(
+              onRefresh:
+              _loadProviders,
+              child:
+              ListView.builder(
+                physics:
+                const AlwaysScrollableScrollPhysics(),
+                padding:
+                const EdgeInsets
+                    .fromLTRB(
+                  16,
+                  8,
+                  16,
+                  16,
+                ),
+                itemCount:
+                filteredProviders
+                    .length,
+                itemBuilder: (
+                    context,
+                    index,
+                    ) {
+                  final provider =
+                  filteredProviders[
+                  index];
+
+                  return Card(
+                    margin:
+                    const EdgeInsets
+                        .only(
+                      bottom: 12,
+                    ),
+                    child: ListTile(
+                      leading:
+                      CircleAvatar(
+                        backgroundColor:
+                        Colors
+                            .blue
+                            .shade100,
+                        child:
+                        const Icon(
+                          Icons
+                              .engineering,
+                          color:
+                          Colors.blue,
+                        ),
+                      ),
+                      title: Text(
+                        provider['name']
+                            ?.toString() ??
+                            'Không tên',
+                        style:
+                        const TextStyle(
+                          fontWeight:
+                          FontWeight
+                              .bold,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                        children: [
+                          Text(
+                            'SĐT: ${provider['phone'] ?? ''}',
+                          ),
+                          Text(
+                            'Dịch vụ: ${provider['service_name'] ?? 'Chưa gán'}',
+                          ),
+                          Text(
+                            'Giá/giờ: ${provider['price_per_hour'] ?? 0} đ',
+                          ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize:
+                        MainAxisSize
+                            .min,
+                        children: [
+                          IconButton(
+                            tooltip:
+                            'Sửa nhân viên',
+                            onPressed:
+                                () {
+                              _showProviderDialog(
+                                provider:
+                                provider,
+                              );
+                            },
+                            icon:
+                            const Icon(
+                              Icons.edit,
+                              color: Colors
+                                  .blue,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip:
+                            'Xóa nhân viên',
+                            onPressed:
+                                () {
+                              _deleteProvider(
+                                provider,
+                              );
+                            },
+                            icon:
+                            const Icon(
+                              Icons.delete,
+                              color: Colors
+                                  .red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton:
+      FloatingActionButton.extended(
+        onPressed: () {
+          _showProviderDialog();
+        },
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'Thêm nhân viên',
+        ),
+      ),
+    );
+  }
+}
