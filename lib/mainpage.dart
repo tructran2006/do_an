@@ -2,6 +2,7 @@
 // import 'package:do_an/data/helper/db_helper.dart';
 // import 'package:do_an/data/model/home_service.dart';
 // import 'package:do_an/data/model/user_model.dart';
+import 'package:do_an/data/model/provider_model.dart';
 
 // import 'package:do_an/page/user/booking/booking_widget.dart';
 // import 'package:do_an/page/user/history/user_appointments.dart';
@@ -107,6 +108,7 @@ import 'package:flutter/material.dart';
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/home_service.dart';
 import 'package:do_an/data/model/user_model.dart';
+import 'package:do_an/data/model/provider_model.dart';
 
 import 'package:do_an/page/user/booking/booking_widget.dart';
 import 'package:do_an/page/user/history/user_appointments.dart';
@@ -136,6 +138,7 @@ class _MainPageState extends State<MainPage> {
 
   // Biến lưu trữ dịch vụ vừa được chọn từ Trang chủ
   HomeServiceModel? _selectedService;
+  ProviderModel? _selectedProvider;
 
   @override
   void initState() {
@@ -352,6 +355,7 @@ class _MainPageState extends State<MainPage> {
               role: widget.role,
               email: '',
               avatar: '',
+              address: '',
             );
 
         // Danh sách màn hình trong ứng dụng
@@ -361,15 +365,25 @@ class _MainPageState extends State<MainPage> {
             onServiceSelected: (service) {
               setState(() {
                 _selectedService = service;
+                _selectedProvider = null;
                 _selectedIndex = 1; // Đổi sang tab Đặt lịch (index = 1)
               });
             },
+          onProviderSelected: (service, provider) {
+            setState(() {
+              _selectedService = service;
+              _selectedProvider = provider;
+              _selectedIndex = 1;
+            });
+          },
           ),
 
           // 2. Trang Đặt lịch: Hiển thị dịch vụ vừa được chọn từ Trang chủ
           BookingWidget(
             userId: widget.userId,
             service: _selectedService ?? defaultService,
+            initialProvider: _selectedProvider,
+            userAddress: currentUser.address,
           ),
 
           // 3. Trang Lịch sử cuộc hẹn

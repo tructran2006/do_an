@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/user_model.dart';
+import 'package:do_an/core/app_validators.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -24,6 +25,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController phoneController =
       TextEditingController();
 
+  final TextEditingController addressController =
+      TextEditingController();
+
   final TextEditingController passwordController =
       TextEditingController();
 
@@ -40,6 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
     usernameController.dispose();
     emailController.dispose();
     phoneController.dispose();
+    addressController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
@@ -58,85 +63,35 @@ class _RegisterPageState extends State<RegisterPage> {
     final String phone =
         phoneController.text.trim();
 
+    final String address =
+        addressController.text.trim();
+
     final String password =
         passwordController.text.trim();
 
     final String confirmPassword =
         confirmPasswordController.text.trim();
 
-    // Kiểm tra các trường bắt buộc
-    if (fullName.isEmpty ||
-        username.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập đầy đủ các thông tin bắt buộc',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-
-      return;
+    final List<String?> errors = [
+      AppValidators.fullName(fullName),
+      AppValidators.username(username),
+      AppValidators.email(email),
+      AppValidators.phone(phone),
+      AppValidators.address(address),
+      AppValidators.password(password),
+      password == confirmPassword ? null : 'Mật khẩu xác nhận không trùng khớp',
+    ];
+    String? firstError;
+    for (final error in errors) {
+      if (error != null) {
+        firstError = error;
+        break;
+      }
     }
-
-    // Kiểm tra độ dài tên đăng nhập
-    if (username.length < 4) {
+    if (firstError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Tên đăng nhập phải có ít nhất 4 ký tự',
-          ),
-          backgroundColor: Colors.orange,
-        ),
+        SnackBar(content: Text(firstError), backgroundColor: Colors.orange),
       );
-
-      return;
-    }
-
-    // Kiểm tra độ dài mật khẩu
-    if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Mật khẩu phải có ít nhất 6 ký tự',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-
-      return;
-    }
-
-    // Kiểm tra mật khẩu xác nhận
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Mật khẩu xác nhận không trùng khớp',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      return;
-    }
-
-    // Kiểm tra định dạng email nếu người dùng có nhập
-    if (email.isNotEmpty &&
-        !RegExp(
-          r'^[\w\.-]+@[\w\.-]+\.\w+$',
-        ).hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Email không đúng định dạng',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-
       return;
     }
 
@@ -153,6 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
         role: 'USER',
         email: email,
         avatar: '',
+        address: address,
       );
 
       // Lưu người dùng mới vào SQLite
@@ -316,6 +272,18 @@ class _RegisterPageState extends State<RegisterPage> {
                   decoration: buildInputDecoration(
                     label: 'Số điện thoại',
                     icon: Icons.phone,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: addressController,
+                  keyboardType: TextInputType.streetAddress,
+                  textInputAction: TextInputAction.next,
+                  maxLines: 2,
+                  decoration: buildInputDecoration(
+                    label: 'Địa chỉ mặc định *',
+                    icon: Icons.location_on_outlined,
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -4,6 +4,7 @@ import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/mainpage.dart';
 import 'package:do_an/page/admin/admin_main_page.dart';
 import 'package:do_an/page/auth/register_page.dart';
+import 'package:do_an/core/app_validators.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,17 +37,15 @@ class _LoginPageState extends State<LoginPage> {
     final String password =
         passwordController.text.trim();
 
-    // Kiểm tra người dùng đã nhập đầy đủ thông tin hay chưa
-    if (username.isEmpty || password.isEmpty) {
+    final String? usernameError = AppValidators.username(username);
+    final String? passwordError = AppValidators.password(password);
+    if (usernameError != null || passwordError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu',
-          ),
+        SnackBar(
+          content: Text(usernameError ?? passwordError!),
           backgroundColor: Colors.orange,
         ),
       );
-
       return;
     }
 

@@ -20,7 +20,7 @@ class DatabaseHelper {
   static const String _databaseName =
       'db_home_services.db';
 
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   Future<Database> get database async {
     if (_database != null) {
@@ -84,6 +84,13 @@ class DatabaseHelper {
 
     await _addColumnIfNotExists(
       db: db,
+      tableName: 'user',
+      columnName: 'address',
+      columnDefinition: 'TEXT',
+    );
+
+    await _addColumnIfNotExists(
+      db: db,
       tableName: 'appointment',
       columnName: 'providerid',
       columnDefinition: 'INTEGER',
@@ -131,7 +138,8 @@ class DatabaseHelper {
         phone TEXT,
         role TEXT NOT NULL DEFAULT 'USER',
         email TEXT,
-        avatar TEXT
+        avatar TEXT,
+        address TEXT
       )
     ''');
 
@@ -191,7 +199,8 @@ class DatabaseHelper {
         phone TEXT,
         role TEXT NOT NULL DEFAULT 'USER',
         email TEXT,
-        avatar TEXT
+        avatar TEXT,
+        address TEXT
       )
     ''');
 

@@ -9,10 +9,12 @@ import 'package:do_an/data/model/service_category.dart';
 
 class HomeWidget extends StatefulWidget {
   final ValueChanged<HomeServiceModel>? onServiceSelected;
+  final void Function(HomeServiceModel service, ProviderModel provider)? onProviderSelected;
 
   const HomeWidget({
     super.key,
     this.onServiceSelected,
+    this.onProviderSelected,
   });
 
   @override
@@ -56,7 +58,6 @@ class _HomeWidgetState extends State<HomeWidget> {
     _startBannerAutoPlay();
   }
 
-  @override
   @override
   void dispose() {
     _bannerTimer?.cancel();
@@ -221,7 +222,11 @@ class _HomeWidgetState extends State<HomeWidget> {
       return;
     }
 
-    _goToBooking(selectedService);
+    if (widget.onProviderSelected != null) {
+      widget.onProviderSelected!(selectedService, provider);
+    } else {
+      _goToBooking(selectedService);
+    }
   }
 
   String _formatPrice(int? price) {
@@ -271,13 +276,13 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (context, error, stackTrace) {
           return Image.network(
             fallbackUrl,
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (_, __, ___) {
+            errorBuilder: (context, error, stackTrace) {
               return _buildImagePlaceholder(
                 width: width,
                 height: height,
@@ -292,13 +297,13 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (context, error, stackTrace) {
           return Image.network(
             fallbackUrl,
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (_, __, ___) {
+            errorBuilder: (context, error, stackTrace) {
               return _buildImagePlaceholder(
                 width: width,
                 height: height,
@@ -313,7 +318,7 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (context, error, stackTrace) {
           return _buildImagePlaceholder(
             width: width,
             height: height,

@@ -7,15 +7,20 @@ import 'package:do_an/data/model/home_service.dart';
 import 'package:do_an/data/model/provider_model.dart';
 import 'package:do_an/data/model/service_category.dart';
 import 'package:do_an/page/user/booking/booking_success_page.dart';
+import 'package:do_an/core/app_validators.dart';
 
 class BookingWidget extends StatefulWidget {
   final HomeServiceModel service;
   final int userId;
+  final String userAddress;
+  final ProviderModel? initialProvider;
 
   const BookingWidget({
     super.key,
     required this.service,
     required this.userId,
+    this.userAddress = '',
+    this.initialProvider,
   });
 
   @override
@@ -53,6 +58,7 @@ class _BookingWidgetState extends State<BookingWidget> {
   @override
   void initState() {
     super.initState();
+    _addressController.text = widget.userAddress.trim();
     _loadData();
   }
 
@@ -62,7 +68,13 @@ class _BookingWidgetState extends State<BookingWidget> {
       ) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.service.id != widget.service.id) {
+    if (oldWidget.userAddress != widget.userAddress &&
+        _addressController.text.trim().isEmpty) {
+      _addressController.text = widget.userAddress.trim();
+    }
+
+    if (oldWidget.service.id != widget.service.id ||
+        oldWidget.initialProvider?.id != widget.initialProvider?.id) {
       _selectServiceFromOutside();
     }
   }
@@ -182,8 +194,19 @@ class _BookingWidgetState extends State<BookingWidget> {
       _selectedService = matchedService;
       _selectedCategory =
           _findCategory(matchedService!.catId);
-      _selectedProvider = null;
+      _selectedProvider = _findProvider(widget.initialProvider?.id, matchedService!.id);
     });
+  }
+
+
+  ProviderModel? _findProvider(int? providerId, int? serviceId) {
+    if (providerId == null || serviceId == null) return null;
+    for (final provider in _providers) {
+      if (provider.id == providerId && provider.serviceId == serviceId) {
+        return provider;
+      }
+    }
+    return null;
   }
 
   ServiceCategoryModel? _findCategory(
@@ -454,7 +477,7 @@ class _BookingWidgetState extends State<BookingWidget> {
   }
 
   void _resetForm() {
-    _addressController.clear();
+    _addressController.text = widget.userAddress.trim();
     _noteController.clear();
 
     setState(() {
@@ -735,7 +758,8 @@ class _BookingWidgetState extends State<BookingWidget> {
   Widget _buildServiceDropdown() {
     return DropdownButtonFormField<
         HomeServiceModel>(
-      value: _selectedService,
+      key: ValueKey<int?>(_selectedService?.id),
+      initialValue: _selectedService,
       isExpanded: true,
       decoration: _inputDecoration(
         label: 'Dịch vụ *',
@@ -798,7 +822,8 @@ class _BookingWidgetState extends State<BookingWidget> {
 
     return DropdownButtonFormField<
         ProviderModel>(
-      value: _selectedProvider,
+      key: ValueKey<String>('${_selectedService?.id}-${_selectedProvider?.id}'),
+      initialValue: _selectedProvider,
       isExpanded: true,
       decoration: _inputDecoration(
         label: 'Nhân viên *',
@@ -934,20 +959,7 @@ class _BookingWidgetState extends State<BookingWidget> {
         hint:
         'Nhập địa chỉ thực hiện dịch vụ',
       ),
-      validator: (String? value) {
-        final String address =
-            value?.trim() ?? '';
-
-        if (address.isEmpty) {
-          return 'Vui lòng nhập địa chỉ';
-        }
-
-        if (address.length < 5) {
-          return 'Địa chỉ phải có ít nhất 5 ký tự';
-        }
-
-        return null;
-      },
+      validator: AppValidators.address,
     );
   }
 
@@ -957,6 +969,9 @@ class _BookingWidgetState extends State<BookingWidget> {
       enabled: !_isSubmitting,
       maxLines: 3,
       maxLength: 300,
+      validator: (value) => (value?.trim().length ?? 0) > 300
+          ? 'Ghi chú không được vượt quá 300 ký tự'
+          : null,
       decoration: _inputDecoration(
         label: 'Ghi chú',
         icon: Icons.note,

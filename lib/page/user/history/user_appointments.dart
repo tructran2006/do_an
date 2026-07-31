@@ -175,8 +175,21 @@ class _UserAppointmentsState
           BuildContext dialogContext,
           ) {
         return AlertDialog(
-          title: const Text(
-            'Chi tiết lịch hẹn',
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          titlePadding: EdgeInsets.zero,
+          title: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: const BoxDecoration(
+              color: Color(0xFF2E7D5B),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.receipt_long_outlined, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Chi tiết lịch hẹn', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              ],
+            ),
           ),
           content: SizedBox(
             width: 430,
@@ -272,10 +285,13 @@ class _UserAppointmentsState
     required String label,
     required String value,
   }) {
-    return Padding(
-      padding:
-      const EdgeInsets.only(
-        bottom: 12,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8F7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E9E6)),
       ),
       child: Row(
         crossAxisAlignment:

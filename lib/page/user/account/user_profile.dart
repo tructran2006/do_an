@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/user_model.dart';
+import 'package:do_an/core/app_validators.dart';
 
 class UserProfilePage extends StatefulWidget {
   final UserModel? user;
@@ -38,6 +39,9 @@ class _UserProfilePageState
   late final TextEditingController
   _avatarController;
 
+  late final TextEditingController
+  _addressController;
+
   bool _isEditing = false;
   bool _isLoading = false;
 
@@ -55,6 +59,9 @@ class _UserProfilePageState
         TextEditingController();
 
     _avatarController =
+        TextEditingController();
+
+    _addressController =
         TextEditingController();
 
     _setUserData();
@@ -76,6 +83,7 @@ class _UserProfilePageState
             oldUser?.phone != newUser?.phone ||
             oldUser?.email != newUser?.email ||
             oldUser?.avatar != newUser?.avatar ||
+            oldUser?.address != newUser?.address ||
             oldUser?.role != newUser?.role;
 
     if (userChanged) {
@@ -98,6 +106,9 @@ class _UserProfilePageState
 
     _avatarController.text =
         user?.avatar ?? '';
+
+    _addressController.text =
+        user?.address ?? '';
   }
 
   UserModel _createUpdatedUser({
@@ -117,6 +128,7 @@ class _UserProfilePageState
       _emailController.text.trim(),
       avatar: avatar ??
           _avatarController.text.trim(),
+      address: _addressController.text.trim(),
       role: user.role,
     );
   }
@@ -443,6 +455,7 @@ class _UserProfilePageState
     _phoneController.dispose();
     _emailController.dispose();
     _avatarController.dispose();
+    _addressController.dispose();
 
     super.dispose();
   }
@@ -498,7 +511,7 @@ class _UserProfilePageState
             Positioned.fill(
               child: Container(
                 color: Colors.black
-                    .withOpacity(0.15),
+                    .withValues(alpha: 0.15),
                 child: const Center(
                   child:
                   CircularProgressIndicator(
@@ -567,7 +580,7 @@ class _UserProfilePageState
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black
-                          .withOpacity(0.15),
+                          .withValues(alpha: 0.15),
                       blurRadius: 10,
                       offset:
                       const Offset(0, 5),
@@ -625,7 +638,7 @@ class _UserProfilePageState
                 : 'Khách hàng',
             style: TextStyle(
               color: Colors.white
-                  .withOpacity(0.85),
+                  .withValues(alpha: 0.85),
               fontSize: 14,
             ),
           ),
@@ -755,14 +768,7 @@ class _UserProfilePageState
               label: 'Họ và tên',
               icon:
               Icons.person_outline,
-              validator: (value) {
-                if (value == null ||
-                    value.trim().isEmpty) {
-                  return 'Vui lòng nhập họ và tên';
-                }
-
-                return null;
-              },
+              validator: AppValidators.fullName,
             ),
             const SizedBox(height: 16),
             _buildTextField(
@@ -773,14 +779,7 @@ class _UserProfilePageState
               Icons.phone_outlined,
               keyboardType:
               TextInputType.phone,
-              validator: (value) {
-                if (value == null ||
-                    value.trim().isEmpty) {
-                  return 'Vui lòng nhập số điện thoại';
-                }
-
-                return null;
-              },
+              validator: AppValidators.phone,
             ),
             const SizedBox(height: 16),
             _buildTextField(
@@ -792,6 +791,16 @@ class _UserProfilePageState
               keyboardType:
               TextInputType
                   .emailAddress,
+              validator: AppValidators.email,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _addressController,
+              label: 'Địa chỉ mặc định',
+              icon: Icons.location_on_outlined,
+              keyboardType: TextInputType.streetAddress,
+              validator: AppValidators.address,
+              maxLines: 2,
             ),
           ],
         ),
@@ -905,6 +914,7 @@ class _UserProfilePageState
         TextInputType.text,
     String? Function(String?)?
     validator,
+    int maxLines = 1,
   }) {
     return TextFormField(
       controller: controller,
@@ -912,6 +922,7 @@ class _UserProfilePageState
       _isEditing && !_isLoading,
       keyboardType: keyboardType,
       validator: validator,
+      maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(

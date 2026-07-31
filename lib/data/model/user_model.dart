@@ -6,7 +6,8 @@ class UserModel {
   String phone;
   String role; // "USER" hoặc "ADMIN"
   String email;   // THÊM MỚI
-  String avatar;  // THÊM MỚI
+  String avatar;
+  String address;
 
   UserModel({
     this.id,
@@ -16,7 +17,8 @@ class UserModel {
     required this.phone,
     required this.role,
     this.email = '',    // Mặc định trống
-    this.avatar = '',   // Mặc định trống
+    this.avatar = '',
+    this.address = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class UserModel {
       'role': role,
       'email': email,
       'avatar': avatar,
+      'address': address,
     };
   }
 
@@ -42,6 +45,7 @@ class UserModel {
       role: map['role'] ?? 'USER',
       email: map['email'] ?? '',
       avatar: map['avatar'] ?? '',
+      address: map['address'] ?? '',
     );
   }
 }
