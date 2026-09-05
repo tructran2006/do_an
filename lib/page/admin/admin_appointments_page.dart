@@ -286,7 +286,9 @@ class _AdminAppointmentsPageState
                   _buildDetailRow(
                     label: 'Số điện thoại',
                     value: _textOrDefault(
-                      appointment['user_phone'],
+                      appointment['contact_phone']?.toString().trim().isNotEmpty == true
+                          ? appointment['contact_phone']
+                          : appointment['user_phone'],
                       'Chưa có',
                     ),
                   ),
@@ -531,13 +533,9 @@ class _AdminAppointmentsPageState
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
-                backgroundColor:
-                Color(0xFFE8F5E9),
-                child: Icon(
-                  Icons.calendar_month,
-                  color: Colors.green,
-                ),
+              _AdminAppointmentImage(
+                imageUrl: appointment['service_img']?.toString() ?? '',
+                fallbackText: appointment['service_name']?.toString() ?? 'DV',
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -680,5 +678,24 @@ class _AdminAppointmentsPageState
         ],
       ),
     );
+  }
+}
+
+
+class _AdminAppointmentImage extends StatelessWidget {
+  final String imageUrl;
+  final String fallbackText;
+  const _AdminAppointmentImage({required this.imageUrl, required this.fallbackText});
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(width: 50, height: 50, child: url.isEmpty ? _fallback() : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallback())),
+    );
+  }
+  Widget _fallback() {
+    final t = fallbackText.trim().isEmpty ? '?' : fallbackText.trim()[0].toUpperCase();
+    return Container(color: const Color(0xFFFFF3E4), alignment: Alignment.center, child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFF28C28))));
   }
 }

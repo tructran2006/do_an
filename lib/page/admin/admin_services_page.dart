@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:do_an/core/app_validators.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/service_category.dart';
@@ -501,10 +503,9 @@ class _AdminServicesPageState
         10,
       ),
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(
-            Icons.cleaning_services,
-          ),
+        leading: _AdminServiceImage(
+          imageUrl: service['img']?.toString() ?? '',
+          fallbackText: name,
         ),
         title: Text(
           name,
@@ -747,32 +748,18 @@ class _ServiceFormDialogState
       _priceController.text.trim(),
     );
 
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập tên dịch vụ.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    if (price == null ||
-        price < 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng nhập giá hợp lệ.',
-          ),
-        ),
-      );
-
-      return;
-    }
+    final nameError = AppValidators.simpleName(name, field: 'tên dịch vụ');
+    if (nameError != null) { _showError(nameError); return; }
+    if (price == null || price <= 0) { _showError('Giá dịch vụ phải là số nguyên lớn hơn 0.'); return; }
+    if (_selectedCategoryId == null) { _showError('Vui lòng chọn danh mục dịch vụ.'); return; }
+    final imageError = AppValidators.imageUrl(_imageController.text);
+    if (imageError != null) { _showError(imageError); return; }
+    if (_descriptionController.text.trim().length > 500) { _showError('Mô tả không được vượt quá 500 ký tự.'); return; }
+    final duplicated = await widget.databaseHelper.serviceNameExists(
+      name, excludeId: _isEditing ? widget.service!['id'] as int : null,
+    );
+    if (!mounted) return;
+    if (duplicated) { _showError('Tên dịch vụ đã tồn tại. Vui lòng nhập tên khác.'); return; }
 
     setState(() {
       _isSaving = true;
@@ -841,6 +828,13 @@ class _ServiceFormDialogState
     }
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
   @override
   Widget build(
       BuildContext context,
@@ -861,6 +855,7 @@ class _ServiceFormDialogState
               TextField(
                 controller:
                 _nameController,
+                inputFormatters: [LengthLimitingTextInputFormatter(80)],
                 enabled: !_isSaving,
                 decoration:
                 const InputDecoration(
@@ -879,6 +874,7 @@ class _ServiceFormDialogState
                 enabled: !_isSaving,
                 keyboardType:
                 TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
                 decoration:
                 const InputDecoration(
                   labelText: 'Giá *',
@@ -949,6 +945,7 @@ class _ServiceFormDialogState
                 _descriptionController,
                 enabled: !_isSaving,
                 maxLines: 3,
+                maxLength: 500,
                 decoration:
                 const InputDecoration(
                   labelText: 'Mô tả',
@@ -985,5 +982,28 @@ class _ServiceFormDialogState
         ),
       ],
     );
+  }
+}
+
+
+class _AdminServiceImage extends StatelessWidget {
+  final String imageUrl;
+  final String fallbackText;
+  const _AdminServiceImage({required this.imageUrl, required this.fallbackText});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 52, height: 52,
+        child: url.isEmpty ? _fallback() : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallback()),
+      ),
+    );
+  }
+  Widget _fallback() {
+    final t = fallbackText.trim().isEmpty ? '?' : fallbackText.trim()[0].toUpperCase();
+    return Container(color: const Color(0xFFE8F7EE), alignment: Alignment.center, child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF159447))));
   }
 }

@@ -20,7 +20,7 @@ class DatabaseHelper {
   static const String _databaseName =
       'db_home_services.db';
 
-  static const int _databaseVersion = 6;
+  static const int _databaseVersion = 7;
 
   Future<Database> get database async {
     if (_database != null) {
@@ -104,6 +104,13 @@ class DatabaseHelper {
       "TEXT NOT NULL DEFAULT 'PENDING'",
     );
 
+    await _addColumnIfNotExists(
+      db: db,
+      tableName: 'appointment',
+      columnName: 'phone',
+      columnDefinition: 'TEXT',
+    );
+
     await _seedInitialData(db);
   }
 
@@ -162,6 +169,7 @@ class DatabaseHelper {
         providerid INTEGER,
         bookdate TEXT,
         address TEXT,
+        phone TEXT,
         note TEXT,
         status TEXT NOT NULL DEFAULT 'PENDING'
       )
@@ -223,6 +231,7 @@ class DatabaseHelper {
         providerid INTEGER,
         bookdate TEXT,
         address TEXT,
+        phone TEXT,
         note TEXT,
         status TEXT NOT NULL DEFAULT 'PENDING'
       )
@@ -762,7 +771,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // USER / AUTH
+  // USER / AUTH (đăng nhập , đăng ký, lấy thông tin người dùng)
   // =====================================================
 
   Future<int> registerUser(
@@ -903,7 +912,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // CATEGORY
+  // CATEGORY (danh mục dịch vụ)
   // =====================================================
 
   Future<List<ServiceCategoryModel>>
@@ -922,7 +931,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // SERVICE - USER
+  // SERVICE - USER (danh sách dịch vụ, tìm kiếm dịch vụ , người dùng)
   // =====================================================
 
   Future<List<HomeServiceModel>>
@@ -963,7 +972,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // SERVICE - ADMIN
+  // SERVICE - ADMIN (danh sách dịch vụ, thêm, sửa, xóa dịch vụ)
   // =====================================================
 
   Future<List<Map<String, dynamic>>>
@@ -984,6 +993,21 @@ class DatabaseHelper {
         ON s.catid = c.id
       ORDER BY s.name COLLATE NOCASE ASC
     ''');
+  }
+
+  Future<bool> serviceNameExists(String name, {int? excludeId}) async {
+    final db = await database;
+    final normalized = name.trim();
+    final result = await db.query(
+      'home_service',
+      columns: ['id'],
+      where: excludeId == null
+          ? 'LOWER(TRIM(name)) = LOWER(?)'
+          : 'LOWER(TRIM(name)) = LOWER(?) AND id != ?',
+      whereArgs: excludeId == null ? [normalized] : [normalized, excludeId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
   }
 
   Future<int> addService({
@@ -1060,7 +1084,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // PROVIDER - USER
+  // PROVIDER - USER (danh sách nhà cung cấp, tìm kiếm nhà cung cấp)
   // =====================================================
 
   Future<List<ProviderModel>>
@@ -1098,7 +1122,7 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // PROVIDER - ADMIN
+  // PROVIDER - ADMIN (danh sách nhà cung cấp, thêm, sửa, xóa nhà cung cấp)
   // =====================================================
 
   Future<List<Map<String, dynamic>>>
@@ -1119,6 +1143,28 @@ class DatabaseHelper {
         ON p.service_id = s.id
       ORDER BY p.name COLLATE NOCASE ASC
     ''');
+  }
+
+  Future<bool> providerNameExists(String name, {int? excludeId}) async {
+    final db = await database;
+    final normalized = name.trim();
+    final result = await db.query(
+      'provider', columns: ['id'],
+      where: excludeId == null ? 'LOWER(TRIM(name)) = LOWER(?)' : 'LOWER(TRIM(name)) = LOWER(?) AND id != ?',
+      whereArgs: excludeId == null ? [normalized] : [normalized, excludeId], limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  Future<bool> providerPhoneExists(String phone, {int? excludeId}) async {
+    final db = await database;
+    final normalized = phone.replaceAll(' ', '').trim();
+    final result = await db.query(
+      'provider', columns: ['id'],
+      where: excludeId == null ? "REPLACE(TRIM(phone), ' ', '') = ?" : "REPLACE(TRIM(phone), ' ', '') = ? AND id != ?",
+      whereArgs: excludeId == null ? [normalized] : [normalized, excludeId], limit: 1,
+    );
+    return result.isNotEmpty;
   }
 
   Future<int> addProvider({
@@ -1192,8 +1238,23 @@ class DatabaseHelper {
   }
 
   // =====================================================
-  // APPOINTMENT
+  // APPOINTMENT (lịch hẹn)
   // =====================================================
+
+  Future<bool> providerHasAppointmentAt({
+    required int providerId,
+    required String bookDate,
+  }) async {
+    final db = await database;
+    final result = await db.query(
+      'appointment',
+      columns: ['id'],
+      where: "providerid = ? AND bookdate = ? AND UPPER(COALESCE(status, 'PENDING')) != 'CANCELLED'",
+      whereArgs: [providerId, bookDate.trim()],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
 
   Future<int> insertAppointment(
       AppointmentModel appointment,
@@ -1229,6 +1290,7 @@ class DatabaseHelper {
         a.providerid,
         a.bookdate,
         a.address,
+        a.phone AS contact_phone,
         a.note,
         a.status,
 
@@ -1269,17 +1331,21 @@ class DatabaseHelper {
         a.providerid,
         a.bookdate,
         a.address,
+        a.phone AS contact_phone,
         a.note,
         a.status,
 
         u.fullname AS user_name,
         u.phone AS user_phone,
+        u.avatar AS user_avatar,
 
         s.name AS service_name,
         s.price AS service_price,
+        s.img AS service_img,
 
         p.name AS provider_name,
-        p.phone AS provider_phone
+        p.phone AS provider_phone,
+        p.image_url AS provider_image
 
       FROM appointment a
 
@@ -1300,12 +1366,16 @@ class DatabaseHelper {
     required int appointmentId,
     required String status,
   }) async {
+    final normalizedStatus = status.trim().toUpperCase();
+    const allowedStatuses = {'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'};
+    if (appointmentId <= 0) throw ArgumentError('ID lịch hẹn không hợp lệ.');
+    if (!allowedStatuses.contains(normalizedStatus)) throw ArgumentError('Trạng thái lịch hẹn không hợp lệ.');
     final Database db = await database;
 
     return db.update(
       'appointment',
       {
-        'status': status.toUpperCase(),
+        'status': normalizedStatus,
       },
       where: 'id = ?',
       whereArgs: [appointmentId],
@@ -1324,8 +1394,31 @@ class DatabaseHelper {
     );
   }
 
+  // Người dùng chỉ được hủy lịch của chính mình khi lịch còn chờ xác nhận.
+  // Điều kiện trạng thái được kiểm tra trực tiếp trong SQL để tránh trường hợp
+  // Admin vừa xác nhận lịch trong lúc người dùng đang mở màn hình lịch sử.
+  Future<int> cancelPendingAppointment({
+    required int appointmentId,
+    required int userId,
+  }) async {
+    if (appointmentId <= 0 || userId <= 0) {
+      return 0;
+    }
+
+    final Database db = await database;
+
+    return db.update(
+      'appointment',
+      {
+        'status': 'CANCELLED',
+      },
+      where: "id = ? AND userid = ? AND UPPER(COALESCE(status, 'PENDING')) = 'PENDING'",
+      whereArgs: [appointmentId, userId],
+    );
+  }
+
   // =====================================================
-  // DASHBOARD ADMIN
+  // DASHBOARD ADMIN (thống kê số liệu cho trang tổng quan của Admin)
   // =====================================================
 
   Future<Map<String, dynamic>>

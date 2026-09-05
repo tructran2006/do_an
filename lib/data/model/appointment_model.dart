@@ -5,6 +5,7 @@ class AppointmentModel {
   int? providerId;
   String bookDate;
   String address;
+  String phone;
   String note;
   String status;
 
@@ -15,6 +16,7 @@ class AppointmentModel {
     this.providerId,
     required this.bookDate,
     required this.address,
+    this.phone = '',
     required this.note,
     required this.status,
   });
@@ -27,6 +29,7 @@ class AppointmentModel {
       'providerid': providerId,
       'bookdate': bookDate,
       'address': address,
+      'phone': phone,
       'note': note,
       'status': status,
     };
@@ -47,6 +50,7 @@ class AppointmentModel {
       map['bookdate']?.toString() ?? '',
       address:
       map['address']?.toString() ?? '',
+      phone: map['phone']?.toString() ?? '',
       note: map['note']?.toString() ?? '',
       status:
       map['status']?.toString() ?? 'PENDING',

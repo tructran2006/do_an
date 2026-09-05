@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:do_an/core/app_validators.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
 
@@ -207,6 +209,7 @@ class _AdminProvidersPageState
                           phoneController,
                           keyboardType:
                           TextInputType.phone,
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')), LengthLimitingTextInputFormatter(11)],
                           decoration:
                           const InputDecoration(
                             labelText:
@@ -220,10 +223,8 @@ class _AdminProvidersPageState
                           controller:
                           priceController,
                           keyboardType:
-                          const TextInputType
-                              .numberWithOptions(
-                            decimal: true,
-                          ),
+                          const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')), LengthLimitingTextInputFormatter(12)],
                           decoration:
                           const InputDecoration(
                             labelText:
@@ -302,22 +303,32 @@ class _AdminProvidersPageState
                         priceController.text.trim(),
                       );
 
-                      if (name.isEmpty ||
-                          phone.isEmpty ||
-                          price == null ||
-                          selectedServiceId ==
-                              null) {
-                        ScaffoldMessenger.of(
-                          dialogContext,
-                        ).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Vui lòng nhập đầy đủ thông tin',
-                            ),
-                          ),
-                        );
-
-                        return;
+                      final nameError = AppValidators.fullName(name);
+                      if (nameError != null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(nameError), backgroundColor: Colors.red)); return;
+                      }
+                      final phoneError = AppValidators.phone(phone);
+                      if (phoneError != null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(phoneError), backgroundColor: Colors.red)); return;
+                      }
+                      if (price == null || price <= 0) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Giá theo giờ phải là số lớn hơn 0.'), backgroundColor: Colors.red)); return;
+                      }
+                      if (selectedServiceId == null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Vui lòng chọn dịch vụ phụ trách.'), backgroundColor: Colors.red)); return;
+                      }
+                      final imageError = AppValidators.imageUrl(imageController.text);
+                      if (imageError != null) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(imageError), backgroundColor: Colors.red)); return;
+                      }
+                      final currentId = isEditing ? provider['id'] as int : null;
+                      if (await _databaseHelper.providerNameExists(name, excludeId: currentId)) {
+                        if (!dialogContext.mounted) return;
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Tên nhân viên đã tồn tại.'), backgroundColor: Colors.red)); return;
+                      }
+                      if (await _databaseHelper.providerPhoneExists(phone, excludeId: currentId)) {
+                        if (!dialogContext.mounted) return;
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Số điện thoại này đã được sử dụng cho nhân viên khác.'), backgroundColor: Colors.red)); return;
                       }
 
                       try {
@@ -585,19 +596,9 @@ class _AdminProvidersPageState
                       bottom: 12,
                     ),
                     child: ListTile(
-                      leading:
-                      CircleAvatar(
-                        backgroundColor:
-                        Colors
-                            .blue
-                            .shade100,
-                        child:
-                        const Icon(
-                          Icons
-                              .engineering,
-                          color:
-                          Colors.blue,
-                        ),
+                      leading: _AdminNetworkAvatar(
+                        imageUrl: provider['image_url']?.toString() ?? '',
+                        fallbackText: provider['name']?.toString() ?? 'NV',
                       ),
                       title: Text(
                         provider['name']
@@ -686,6 +687,37 @@ class _AdminProvidersPageState
           'Thêm nhân viên',
         ),
       ),
+    );
+  }
+}
+
+class _AdminNetworkAvatar extends StatelessWidget {
+  final String imageUrl;
+  final String fallbackText;
+
+  const _AdminNetworkAvatar({required this.imageUrl, required this.fallbackText});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: url.isEmpty
+            ? _fallback()
+            : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallback()),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    final text = fallbackText.trim().isEmpty ? '?' : fallbackText.trim()[0].toUpperCase();
+    return Container(
+      color: const Color(0xFFEAF2FF),
+      alignment: Alignment.center,
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF3578E5))),
     );
   }
 }

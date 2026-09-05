@@ -379,10 +379,9 @@ class _AdminUsersPageState
         10,
       ),
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(
-            Icons.person,
-          ),
+        leading: _AdminUserAvatar(
+          imageUrl: user.avatar,
+          fallbackText: displayName,
         ),
         title: Text(
           displayName,
@@ -466,5 +465,24 @@ class _AdminUsersPageState
         ],
       ),
     );
+  }
+}
+
+
+class _AdminUserAvatar extends StatelessWidget {
+  final String imageUrl;
+  final String fallbackText;
+  const _AdminUserAvatar({required this.imageUrl, required this.fallbackText});
+  @override
+  Widget build(BuildContext context) {
+    final url = imageUrl.trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(width: 48, height: 48, child: url.isEmpty ? _fallback() : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallback())),
+    );
+  }
+  Widget _fallback() {
+    final t = fallbackText.trim().isEmpty ? '?' : fallbackText.trim()[0].toUpperCase();
+    return Container(color: const Color(0xFFF3ECFF), alignment: Alignment.center, child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF7B4DB5))));
   }
 }

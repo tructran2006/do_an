@@ -108,7 +108,6 @@ import 'package:flutter/material.dart';
 import 'package:do_an/data/helper/db_helper.dart';
 import 'package:do_an/data/model/home_service.dart';
 import 'package:do_an/data/model/user_model.dart';
-import 'package:do_an/data/model/provider_model.dart';
 
 import 'package:do_an/page/user/booking/booking_widget.dart';
 import 'package:do_an/page/user/history/user_appointments.dart';
@@ -384,6 +383,7 @@ class _MainPageState extends State<MainPage> {
             service: _selectedService ?? defaultService,
             initialProvider: _selectedProvider,
             userAddress: currentUser.address,
+            userPhone: currentUser.phone,
           ),
 
           // 3. Trang Lịch sử cuộc hẹn

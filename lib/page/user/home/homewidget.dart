@@ -9,7 +9,11 @@ import 'package:do_an/data/model/service_category.dart';
 
 class HomeWidget extends StatefulWidget {
   final ValueChanged<HomeServiceModel>? onServiceSelected;
-  final void Function(HomeServiceModel service, ProviderModel provider)? onProviderSelected;
+
+  final void Function(
+    HomeServiceModel service,
+    ProviderModel provider,
+  )? onProviderSelected;
 
   const HomeWidget({
     super.key,
@@ -18,15 +22,19 @@ class HomeWidget extends StatefulWidget {
   });
 
   @override
-  State<HomeWidget> createState() => _HomeWidgetState();
+  State<HomeWidget> createState() =>
+      _HomeWidgetState();
 }
 
 class _HomeWidgetState extends State<HomeWidget> {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final DatabaseHelper _databaseHelper =
+      DatabaseHelper();
+
   final TextEditingController _searchController =
-  TextEditingController();
+      TextEditingController();
+
   final PageController _bannerController =
-  PageController();
+      PageController();
 
   List<ServiceCategoryModel> _categories = [];
   List<HomeServiceModel> _services = [];
@@ -35,25 +43,23 @@ class _HomeWidgetState extends State<HomeWidget> {
 
   int? _selectedCategoryId;
   int _currentBannerIndex = 0;
+
   bool _isLoading = true;
+
   Timer? _bannerTimer;
 
+  // Chỉ giữ fallback cho DỊCH VỤ.
+  // Nhân viên không còn sử dụng ảnh random.
   static const List<String> _serviceFallbackImages = [
     'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=900',
     'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900',
     'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=900',
   ];
 
-  static const List<String> _providerFallbackImages = [
-    'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=500',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500',
-  ];
-
   @override
   void initState() {
     super.initState();
+
     _loadData();
     _startBannerAutoPlay();
   }
@@ -61,10 +67,16 @@ class _HomeWidgetState extends State<HomeWidget> {
   @override
   void dispose() {
     _bannerTimer?.cancel();
+
     _searchController.dispose();
     _bannerController.dispose();
+
     super.dispose();
   }
+
+  // =========================================================
+  // LOAD DATA
+  // =========================================================
 
   Future<void> _loadData() async {
     if (mounted) {
@@ -75,16 +87,30 @@ class _HomeWidgetState extends State<HomeWidget> {
 
     try {
       final categories =
-      await _databaseHelper.getAllCategories();
-      final services =
-      await _databaseHelper.getAllServices();
-      final providers =
-      await _databaseHelper.getAllProviders();
+          await _databaseHelper.getAllCategories();
 
+      final services =
+          await _databaseHelper.getAllServices();
+
+      final providers =
+          await _databaseHelper.getAllProviders();
+
+      // Sắp xếp dịch vụ A -> Z
       services.sort((a, b) {
         return (a.name ?? '')
             .toLowerCase()
-            .compareTo((b.name ?? '').toLowerCase());
+            .compareTo(
+              (b.name ?? '').toLowerCase(),
+            );
+      });
+
+      // Sắp xếp nhân viên A -> Z
+      providers.sort((a, b) {
+        return a.name
+            .toLowerCase()
+            .compareTo(
+              b.name.toLowerCase(),
+            );
       });
 
       if (!mounted) {
@@ -98,7 +124,9 @@ class _HomeWidgetState extends State<HomeWidget> {
         _isLoading = false;
       });
 
-      _applyFilter(_searchController.text);
+      _applyFilter(
+        _searchController.text,
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -108,7 +136,8 @@ class _HomeWidgetState extends State<HomeWidget> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             'Không thể tải dữ liệu trang chủ: $error',
@@ -118,10 +147,14 @@ class _HomeWidgetState extends State<HomeWidget> {
     }
   }
 
+  // =========================================================
+  // BANNER
+  // =========================================================
+
   void _startBannerAutoPlay() {
     _bannerTimer = Timer.periodic(
       const Duration(seconds: 4),
-          (_) {
+      (_) {
         if (!_bannerController.hasClients) {
           return;
         }
@@ -139,23 +172,28 @@ class _HomeWidgetState extends State<HomeWidget> {
 
         _bannerController.animateToPage(
           nextIndex,
-          duration: const Duration(milliseconds: 350),
+          duration:
+              const Duration(milliseconds: 350),
           curve: Curves.easeInOut,
         );
       },
     );
   }
 
+  // =========================================================
+  // TÌM KIẾM + DANH MỤC
+  // =========================================================
+
   void _applyFilter(String value) {
     final String keyword =
-    value.trim().toLowerCase();
+        value.trim().toLowerCase();
 
     final List<HomeServiceModel> result =
-    _services.where((service) {
+        _services.where((service) {
       final String serviceName =
-      (service.name ?? '')
-          .trim()
-          .toLowerCase();
+          (service.name ?? '')
+              .trim()
+              .toLowerCase();
 
       final bool matchesSearch =
           keyword.isEmpty ||
@@ -163,10 +201,16 @@ class _HomeWidgetState extends State<HomeWidget> {
 
       final bool matchesCategory =
           _selectedCategoryId == null ||
-              service.catId == _selectedCategoryId;
+              service.catId ==
+                  _selectedCategoryId;
 
-      return matchesSearch && matchesCategory;
+      return matchesSearch &&
+          matchesCategory;
     }).toList();
+
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _visibleServices = result;
@@ -174,17 +218,21 @@ class _HomeWidgetState extends State<HomeWidget> {
   }
 
   void _selectCategory(
-      ServiceCategoryModel category,
-      ) {
+    ServiceCategoryModel category,
+  ) {
     setState(() {
-      if (_selectedCategoryId == category.id) {
+      if (_selectedCategoryId ==
+          category.id) {
         _selectedCategoryId = null;
       } else {
-        _selectedCategoryId = category.id;
+        _selectedCategoryId =
+            category.id;
       }
     });
 
-    _applyFilter(_searchController.text);
+    _applyFilter(
+      _searchController.text,
+    );
   }
 
   void _clearSearch() {
@@ -197,49 +245,82 @@ class _HomeWidgetState extends State<HomeWidget> {
     _applyFilter('');
   }
 
-  void _goToBooking(HomeServiceModel service) {
-    widget.onServiceSelected?.call(service);
+  // =========================================================
+  // ĐẶT LỊCH
+  // =========================================================
+
+  void _goToBooking(
+    HomeServiceModel service,
+  ) {
+    widget.onServiceSelected?.call(
+      service,
+    );
   }
 
-  void _openProvider(ProviderModel provider) {
+  void _openProvider(
+    ProviderModel provider,
+  ) {
     HomeServiceModel? selectedService;
 
     for (final service in _services) {
-      if (service.id == provider.serviceId) {
+      if (service.id ==
+          provider.serviceId) {
         selectedService = service;
         break;
       }
     }
 
     if (selectedService == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Không tìm thấy dịch vụ của nhân viên này.',
           ),
         ),
       );
+
       return;
     }
 
-    if (widget.onProviderSelected != null) {
-      widget.onProviderSelected!(selectedService, provider);
+    if (widget.onProviderSelected !=
+        null) {
+      widget.onProviderSelected!(
+        selectedService,
+        provider,
+      );
     } else {
-      _goToBooking(selectedService);
+      _goToBooking(
+        selectedService,
+      );
     }
   }
 
+  // =========================================================
+  // FORMAT GIÁ
+  // =========================================================
+
   String _formatPrice(int? price) {
     final int value = price ?? 0;
-    final String text = value.toString();
-    final StringBuffer output = StringBuffer();
 
-    for (int index = 0; index < text.length; index++) {
-      output.write(text[index]);
+    final String text =
+        value.toString();
 
-      final int remain = text.length - index - 1;
+    final StringBuffer output =
+        StringBuffer();
 
-      if (remain > 0 && remain % 3 == 0) {
+    for (int index = 0;
+        index < text.length;
+        index++) {
+      output.write(
+        text[index],
+      );
+
+      final int remain =
+          text.length - index - 1;
+
+      if (remain > 0 &&
+          remain % 3 == 0) {
         output.write('.');
       }
     }
@@ -247,15 +328,18 @@ class _HomeWidgetState extends State<HomeWidget> {
     return '${output.toString()} đ';
   }
 
-  String _serviceFallback(int index) {
+  String _serviceFallback(
+    int index,
+  ) {
     return _serviceFallbackImages[
-    index % _serviceFallbackImages.length];
+        index %
+            _serviceFallbackImages
+                .length];
   }
 
-  String _providerFallback(int index) {
-    return _providerFallbackImages[
-    index % _providerFallbackImages.length];
-  }
+  // =========================================================
+  // ẢNH DỊCH VỤ
+  // =========================================================
 
   Widget _buildImage({
     required String? path,
@@ -265,7 +349,8 @@ class _HomeWidgetState extends State<HomeWidget> {
     BoxFit fit = BoxFit.cover,
     BorderRadius? borderRadius,
   }) {
-    final String value = path?.trim() ?? '';
+    final String value =
+        path?.trim() ?? '';
 
     Widget image;
 
@@ -276,13 +361,21 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) {
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
           return Image.network(
             fallbackUrl,
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (context, error, stackTrace) {
+            errorBuilder: (
+              context,
+              error,
+              stackTrace,
+            ) {
               return _buildImagePlaceholder(
                 width: width,
                 height: height,
@@ -297,13 +390,21 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) {
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
           return Image.network(
             fallbackUrl,
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (context, error, stackTrace) {
+            errorBuilder: (
+              context,
+              error,
+              stackTrace,
+            ) {
               return _buildImagePlaceholder(
                 width: width,
                 height: height,
@@ -318,7 +419,11 @@ class _HomeWidgetState extends State<HomeWidget> {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) {
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
           return _buildImagePlaceholder(
             width: width,
             height: height,
@@ -353,187 +458,475 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      body: _isLoading
-          ? const Center(
-        child: CircularProgressIndicator(),
-      )
-          : RefreshIndicator(
-        onRefresh: _loadData,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            24,
-          ),
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 16),
-            _buildBanner(),
-            const SizedBox(height: 22),
-            _buildSectionTitle(
-              'Danh mục dịch vụ',
-            ),
-            const SizedBox(height: 10),
-            _buildCategories(),
-            const SizedBox(height: 22),
-            _buildSectionTitle(
-              _selectedCategoryId == null
-                  ? 'Dịch vụ'
-                  : 'Dịch vụ theo danh mục',
-            ),
-            const SizedBox(height: 10),
-            _buildServices(),
-            const SizedBox(height: 22),
-            _buildSectionTitle(
-              'Nhân viên nổi bật',
-            ),
-            const SizedBox(height: 10),
-            _buildProviders(),
-          ],
+  // =========================================================
+  // ẢNH NHÂN VIÊN
+  //
+  // Có link Admin     -> hiển thị ảnh
+  // Không có link     -> avatar chữ
+  // Link bị lỗi       -> avatar chữ
+  // KHÔNG random ảnh
+  // =========================================================
+
+  Widget _buildProviderImage({
+    required ProviderModel provider,
+    required double width,
+    required double height,
+  }) {
+    final String imageUrl =
+        provider.imageUrl.trim();
+
+    if (imageUrl.isEmpty) {
+      return _buildProviderTextAvatar(
+        name: provider.name,
+        width: width,
+        height: height,
+      );
+    }
+
+    // Link mạng
+    if (imageUrl.startsWith(
+          'http://',
+        ) ||
+        imageUrl.startsWith(
+          'https://',
+        )) {
+      return ClipRRect(
+        borderRadius:
+            BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return _buildProviderTextAvatar(
+              name: provider.name,
+              width: width,
+              height: height,
+            );
+          },
+        ),
+      );
+    }
+
+    // Nếu Admin lưu đường dẫn asset/local
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(8),
+      child: Image.asset(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
+          return _buildProviderTextAvatar(
+            name: provider.name,
+            width: width,
+            height: height,
+          );
+        },
+      ),
+    );
+  }
+
+  // =========================================================
+  // AVATAR CHỮ GIỐNG ADMIN
+  // =========================================================
+
+  Widget _buildProviderTextAvatar({
+    required String name,
+    required double width,
+    required double height,
+  }) {
+    final String initials =
+        _getInitials(name);
+
+    return Container(
+      width: width,
+      height: height,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.green.shade100,
+        borderRadius:
+            BorderRadius.circular(8),
+      ),
+      child: Text(
+        initials,
+        maxLines: 1,
+        style: TextStyle(
+          color: Colors.green.shade700,
+          fontSize: 30,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
         ),
       ),
     );
   }
 
+  String _getInitials(
+    String name,
+  ) {
+    final String cleanName =
+        name.trim();
+
+    if (cleanName.isEmpty) {
+      return '?';
+    }
+
+    final List<String> words =
+        cleanName
+            .split(RegExp(r'\s+'))
+            .where(
+              (word) =>
+                  word.trim().isNotEmpty,
+            )
+            .toList();
+
+    if (words.isEmpty) {
+      return '?';
+    }
+
+    // Chỉ có 1 từ
+    if (words.length == 1) {
+      return words.first
+          .substring(0, 1)
+          .toUpperCase();
+    }
+
+    // Ví dụ:
+    // Nguyễn Văn Nam -> NN
+    final String first =
+        words.first
+            .substring(0, 1);
+
+    final String last =
+        words.last
+            .substring(0, 1);
+
+    return '$first$last'
+        .toUpperCase();
+  }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor:
+          const Color(0xFFF7F7F7),
+      body: _isLoading
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  24,
+                ),
+                children: [
+                  _buildSearchBar(),
+
+                  const SizedBox(
+                    height: 16,
+                  ),
+
+                  _buildBanner(),
+
+                  const SizedBox(
+                    height: 22,
+                  ),
+
+                  _buildSectionTitle(
+                    'Danh mục dịch vụ',
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  _buildCategories(),
+
+                  const SizedBox(
+                    height: 22,
+                  ),
+
+                  _buildSectionTitle(
+                    _selectedCategoryId ==
+                            null
+                        ? 'Dịch vụ'
+                        : 'Dịch vụ theo danh mục',
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  _buildServices(),
+
+                  const SizedBox(
+                    height: 22,
+                  ),
+
+                  _buildSectionTitle(
+                    'Nhân viên nổi bật',
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  _buildProviders(),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // =========================================================
+  // SEARCH BAR
+  // =========================================================
+
   Widget _buildSearchBar() {
     return TextField(
-      controller: _searchController,
+      controller:
+          _searchController,
       onChanged: (value) {
         setState(() {
-// Khi tìm kiếm sẽ tìm trong toàn bộ dịch vụ.
-          _selectedCategoryId = null;
+          // Khi tìm kiếm sẽ tìm
+          // trong toàn bộ dịch vụ.
+          _selectedCategoryId =
+              null;
         });
 
         _applyFilter(value);
       },
-      decoration: InputDecoration(
-        hintText: 'Tìm dịch vụ...',
-        prefixIcon: const Icon(
+      decoration:
+          InputDecoration(
+        hintText:
+            'Tìm dịch vụ...',
+        prefixIcon:
+            const Icon(
           Icons.search,
         ),
         suffixIcon:
-        _searchController.text.isEmpty
-            ? null
-            : IconButton(
-          onPressed: _clearSearch,
-          icon: const Icon(
-            Icons.close,
-          ),
-        ),
+            _searchController
+                    .text
+                    .isEmpty
+                ? null
+                : IconButton(
+                    onPressed:
+                        _clearSearch,
+                    icon:
+                        const Icon(
+                      Icons.close,
+                    ),
+                  ),
         filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+        fillColor:
+            Colors.white,
+        border:
+            OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(
+            10,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBanner() {
-    final List<HomeServiceModel> bannerServices =
-    _services.take(3).toList();
+  // =========================================================
+  // BANNER
+  // =========================================================
 
-    final int itemCount = bannerServices.isEmpty
-        ? _serviceFallbackImages.length
-        : bannerServices.length;
+  Widget _buildBanner() {
+    final List<HomeServiceModel>
+        bannerServices =
+        _services
+            .take(3)
+            .toList();
+
+    final int itemCount =
+        bannerServices.isEmpty
+            ? _serviceFallbackImages
+                .length
+            : bannerServices.length;
 
     return Column(
       children: [
         SizedBox(
           height: 170,
-          child: PageView.builder(
-            controller: _bannerController,
-            itemCount: itemCount,
-            onPageChanged: (index) {
+          child:
+              PageView.builder(
+            controller:
+                _bannerController,
+            itemCount:
+                itemCount,
+            onPageChanged:
+                (index) {
               setState(() {
-                _currentBannerIndex = index;
+                _currentBannerIndex =
+                    index;
               });
             },
-            itemBuilder: (context, index) {
-              final HomeServiceModel? service =
-              bannerServices.isEmpty
-                  ? null
-                  : bannerServices[index];
+            itemBuilder:
+                (context, index) {
+              final HomeServiceModel?
+                  service =
+                  bannerServices
+                          .isEmpty
+                      ? null
+                      : bannerServices[
+                          index];
 
               return Stack(
-                fit: StackFit.expand,
+                fit:
+                    StackFit.expand,
                 children: [
                   _buildImage(
-                    path: service?.img,
+                    path:
+                        service?.img,
                     fallbackUrl:
-                    _serviceFallback(index),
-                    width: double.infinity,
+                        _serviceFallback(
+                      index,
+                    ),
+                    width:
+                        double.infinity,
                     height: 170,
                     borderRadius:
-                    BorderRadius.circular(12),
+                        BorderRadius
+                            .circular(
+                      12,
+                    ),
                   ),
+
                   Container(
-                    decoration: BoxDecoration(
+                    decoration:
+                        BoxDecoration(
                       borderRadius:
-                      BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
+                          BorderRadius
+                              .circular(
+                        12,
+                      ),
+                      gradient:
+                          LinearGradient(
+                        begin: Alignment
+                            .centerLeft,
+                        end: Alignment
+                            .centerRight,
                         colors: [
-                          Colors.black.withValues(
-                            alpha: 0.65,
+                          Colors.black
+                              .withValues(
+                            alpha:
+                                0.65,
                           ),
-                          Colors.black.withValues(
-                            alpha: 0.10,
+                          Colors.black
+                              .withValues(
+                            alpha:
+                                0.10,
                           ),
                         ],
                       ),
                     ),
                   ),
+
                   Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding:
+                        const EdgeInsets
+                            .all(
+                      18,
+                    ),
                     child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
+                      alignment:
+                          Alignment
+                              .centerLeft,
+                      child:
+                          SizedBox(
                         width: 260,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                        child:
+                            Column(
+                          mainAxisSize:
+                              MainAxisSize
+                                  .min,
                           crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                              CrossAxisAlignment
+                                  .start,
                           children: [
                             Text(
-                              service?.name ??
+                              service
+                                      ?.name ??
                                   'Dịch vụ gia đình',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 21,
-                                fontWeight: FontWeight.bold,
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize:
+                                    21,
+                                fontWeight:
+                                    FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 6),
+
+                            const SizedBox(
+                              height:
+                                  6,
+                            ),
+
                             Text(
-                              service == null
+                              service ==
+                                      null
                                   ? 'Đặt lịch nhanh và tiện lợi.'
                                   : 'Giá từ ${_formatPrice(service.price)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Colors.white,
+                                fontSize:
+                                    14,
                               ),
                             ),
-                            if (service != null) ...[
-                              const SizedBox(height: 12),
+
+                            if (service !=
+                                null) ...[
+                              const SizedBox(
+                                height:
+                                    12,
+                              ),
                               FilledButton(
-                                onPressed: () {
-                                  _goToBooking(service);
+                                onPressed:
+                                    () {
+                                  _goToBooking(
+                                    service,
+                                  );
                                 },
-                                style: FilledButton.styleFrom(
+                                style:
+                                    FilledButton
+                                        .styleFrom(
                                   backgroundColor:
-                                  Colors.green,
+                                      Colors.green,
                                   foregroundColor:
-                                  Colors.white,
+                                      Colors.white,
                                 ),
                                 child:
-                                const Text('Đặt lịch'),
+                                    const Text(
+                                  'Đặt lịch',
+                                ),
                               ),
                             ],
                           ],
@@ -546,29 +939,45 @@ class _HomeWidgetState extends State<HomeWidget> {
             },
           ),
         ),
-        const SizedBox(height: 8),
+
+        const SizedBox(
+          height: 8,
+        ),
+
         Row(
           mainAxisAlignment:
-          MainAxisAlignment.center,
-          children: List.generate(
+              MainAxisAlignment
+                  .center,
+          children:
+              List.generate(
             itemCount,
-                (index) {
+            (index) {
               return Container(
-                width: _currentBannerIndex == index
-                    ? 18
-                    : 8,
+                width:
+                    _currentBannerIndex ==
+                            index
+                        ? 18
+                        : 8,
                 height: 8,
                 margin:
-                const EdgeInsets.symmetric(
+                    const EdgeInsets
+                        .symmetric(
                   horizontal: 3,
                 ),
-                decoration: BoxDecoration(
+                decoration:
+                    BoxDecoration(
                   color:
-                  _currentBannerIndex == index
-                      ? Colors.green
-                      : Colors.grey.shade400,
+                      _currentBannerIndex ==
+                              index
+                          ? Colors.green
+                          : Colors
+                              .grey
+                              .shade400,
                   borderRadius:
-                  BorderRadius.circular(10),
+                      BorderRadius
+                          .circular(
+                    10,
+                  ),
                 ),
               );
             },
@@ -578,39 +987,70 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  // =========================================================
+  // TITLE
+  // =========================================================
+
+  Widget _buildSectionTitle(
+    String title,
+  ) {
     return Text(
       title,
-      style: const TextStyle(
+      style:
+          const TextStyle(
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight:
+            FontWeight.bold,
       ),
     );
   }
 
+  // =========================================================
+  // DANH MỤC
+  // =========================================================
+
   Widget _buildCategories() {
     if (_categories.isEmpty) {
-      return const Text('Chưa có danh mục.');
+      return const Text(
+        'Chưa có danh mục.',
+      );
     }
 
     return SizedBox(
       height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) =>
-        const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final category = _categories[index];
+      child:
+          ListView.separated(
+        scrollDirection:
+            Axis.horizontal,
+        itemCount:
+            _categories.length,
+        separatorBuilder:
+            (context, index) =>
+                const SizedBox(
+          width: 8,
+        ),
+        itemBuilder:
+            (context, index) {
+          final category =
+              _categories[index];
+
           final bool selected =
-              _selectedCategoryId == category.id;
+              _selectedCategoryId ==
+                  category.id;
 
           return ChoiceChip(
-            label: Text(category.name),
-            selected: selected,
-            selectedColor: Colors.green.shade100,
+            label: Text(
+              category.name,
+            ),
+            selected:
+                selected,
+            selectedColor:
+                Colors.green
+                    .shade100,
             onSelected: (_) {
-              _selectCategory(category);
+              _selectCategory(
+                category,
+              );
             },
           );
         },
@@ -618,10 +1058,17 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
+  // =========================================================
+  // DỊCH VỤ
+  // =========================================================
+
   Widget _buildServices() {
     if (_visibleServices.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
+        padding:
+            EdgeInsets.symmetric(
+          vertical: 20,
+        ),
         child: Center(
           child: Text(
             'Không có dịch vụ phù hợp.',
@@ -633,79 +1080,133 @@ class _HomeWidgetState extends State<HomeWidget> {
     return ListView.separated(
       shrinkWrap: true,
       physics:
-      const NeverScrollableScrollPhysics(),
-      itemCount: _visibleServices.length,
-      separatorBuilder: (_, __) =>
-      const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final service = _visibleServices[index];
+          const NeverScrollableScrollPhysics(),
+      itemCount:
+          _visibleServices.length,
+      separatorBuilder:
+          (context, index) =>
+              const SizedBox(
+        height: 10,
+      ),
+      itemBuilder:
+          (context, index) {
+        final service =
+            _visibleServices[index];
 
         return Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius:
+              BorderRadius.circular(
+            10,
+          ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
             onTap: () {
-              _goToBooking(service);
+              _goToBooking(
+                service,
+              );
             },
             child: Padding(
-              padding: const EdgeInsets.all(10),
+              padding:
+                  const EdgeInsets.all(
+                10,
+              ),
               child: Row(
                 children: [
                   _buildImage(
-                    path: service.img,
+                    path:
+                        service.img,
                     fallbackUrl:
-                    _serviceFallback(index),
+                        _serviceFallback(
+                      index,
+                    ),
                     width: 86,
                     height: 72,
                     borderRadius:
-                    BorderRadius.circular(8),
+                        BorderRadius
+                            .circular(
+                      8,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+
+                  const SizedBox(
+                    width: 12,
+                  ),
+
                   Expanded(
-                    child: Column(
+                    child:
+                        Column(
                       crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
-                          service.name ?? 'Dịch vụ',
-                          style: const TextStyle(
-                            fontSize: 15,
+                          service.name ??
+                              'Dịch vụ',
+                          style:
+                              const TextStyle(
+                            fontSize:
+                                15,
                             fontWeight:
-                            FontWeight.bold,
+                                FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 5),
+
+                        const SizedBox(
+                          height: 5,
+                        ),
+
                         Text(
-                          _formatPrice(service.price),
-                          style: const TextStyle(
-                            color: Colors.green,
+                          _formatPrice(
+                            service
+                                .price,
+                          ),
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.green,
                             fontWeight:
-                            FontWeight.w600,
+                                FontWeight.w600,
                           ),
                         ),
-                        if ((service.des ?? '')
+
+                        if ((service.des ??
+                                '')
                             .trim()
                             .isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(
+                            height:
+                                4,
+                          ),
                           Text(
-                            service.des!,
-                            maxLines: 1,
+                            service
+                                .des!,
+                            maxLines:
+                                1,
                             overflow:
-                            TextOverflow.ellipsis,
-                            style: TextStyle(
+                                TextOverflow
+                                    .ellipsis,
+                            style:
+                                TextStyle(
                               color:
-                              Colors.grey.shade600,
-                              fontSize: 12,
+                                  Colors.grey.shade600,
+                              fontSize:
+                                  12,
                             ),
                           ),
                         ],
                       ],
                     ),
                   ),
+
                   const Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey,
+                    Icons
+                        .chevron_right,
+                    color:
+                        Colors.grey,
                   ),
                 ],
               ),
@@ -716,75 +1217,134 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
+  // =========================================================
+  // NHÂN VIÊN
+  // =========================================================
+
   Widget _buildProviders() {
     if (_providers.isEmpty) {
-      return const Text('Chưa có nhân viên.');
+      return const Text(
+        'Chưa có nhân viên.',
+      );
     }
 
     return SizedBox(
       height: 190,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _providers.length,
-        separatorBuilder: (_, __) =>
-        const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final provider = _providers[index];
+      child:
+          ListView.separated(
+        scrollDirection:
+            Axis.horizontal,
+        itemCount:
+            _providers.length,
+        separatorBuilder:
+            (context, index) =>
+                const SizedBox(
+          width: 10,
+        ),
+        itemBuilder:
+            (context, index) {
+          final provider =
+              _providers[index];
 
           return Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            color:
+                Colors.white,
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius:
+                  BorderRadius.circular(
+                10,
+              ),
               onTap: () {
-                _openProvider(provider);
+                _openProvider(
+                  provider,
+                );
               },
               child: SizedBox(
                 width: 145,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding:
+                      const EdgeInsets
+                          .all(
+                    10,
+                  ),
                   child: Column(
                     crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
-                      _buildImage(
-                        path: provider.imageUrl,
-                        fallbackUrl:
-                        _providerFallback(index),
+                      // =================================
+                      // FIX Ở ĐÂY
+                      //
+                      // Không dùng ảnh random nữa.
+                      // Lấy trực tiếp imageUrl của
+                      // nhân viên được Admin tạo.
+                      // =================================
+
+                      _buildProviderImage(
+                        provider:
+                            provider,
                         width: 125,
                         height: 100,
-                        borderRadius:
-                        BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 8),
+
+                      const SizedBox(
+                        height: 8,
+                      ),
+
                       Text(
                         provider.name,
                         maxLines: 1,
                         overflow:
-                        TextOverflow.ellipsis,
-                        style: const TextStyle(
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            const TextStyle(
                           fontWeight:
-                          FontWeight.bold,
+                              FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+
+                      const SizedBox(
+                        height: 4,
+                      ),
+
                       Text(
-                        provider.phone,
+                        provider
+                                .phone
+                                .trim()
+                                .isEmpty
+                            ? 'Chưa có SĐT'
+                            : provider
+                                .phone,
                         maxLines: 1,
                         overflow:
-                        TextOverflow.ellipsis,
-                        style: TextStyle(
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            TextStyle(
                           color:
-                          Colors.grey.shade600,
-                          fontSize: 12,
+                              Colors.grey.shade600,
+                          fontSize:
+                              12,
                         ),
                       ),
-                      const SizedBox(height: 4),
+
+                      const SizedBox(
+                        height: 4,
+                      ),
+
                       const Text(
                         'Nhấn để đặt lịch',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
+                        style:
+                            TextStyle(
+                          color:
+                              Colors.green,
+                          fontSize:
+                              12,
                         ),
                       ),
                     ],

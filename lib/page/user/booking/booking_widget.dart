@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:do_an/data/helper/db_helper.dart';
@@ -13,6 +14,7 @@ class BookingWidget extends StatefulWidget {
   final HomeServiceModel service;
   final int userId;
   final String userAddress;
+  final String userPhone;
   final ProviderModel? initialProvider;
 
   const BookingWidget({
@@ -20,6 +22,7 @@ class BookingWidget extends StatefulWidget {
     required this.service,
     required this.userId,
     this.userAddress = '',
+    this.userPhone = '',
     this.initialProvider,
   });
 
@@ -36,6 +39,9 @@ class _BookingWidgetState extends State<BookingWidget> {
   GlobalKey<FormState>();
 
   final TextEditingController _addressController =
+  TextEditingController();
+
+  final TextEditingController _phoneController =
   TextEditingController();
 
   final TextEditingController _noteController =
@@ -59,6 +65,7 @@ class _BookingWidgetState extends State<BookingWidget> {
   void initState() {
     super.initState();
     _addressController.text = widget.userAddress.trim();
+    _phoneController.text = widget.userPhone.trim();
     _loadData();
   }
 
@@ -68,9 +75,11 @@ class _BookingWidgetState extends State<BookingWidget> {
       ) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.userAddress != widget.userAddress &&
-        _addressController.text.trim().isEmpty) {
+    if (oldWidget.userAddress != widget.userAddress && _addressController.text.trim().isEmpty) {
       _addressController.text = widget.userAddress.trim();
+    }
+    if (oldWidget.userPhone != widget.userPhone && _phoneController.text.trim().isEmpty) {
+      _phoneController.text = widget.userPhone.trim();
     }
 
     if (oldWidget.service.id != widget.service.id ||
@@ -82,6 +91,7 @@ class _BookingWidgetState extends State<BookingWidget> {
   @override
   void dispose() {
     _addressController.dispose();
+    _phoneController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -194,7 +204,7 @@ class _BookingWidgetState extends State<BookingWidget> {
       _selectedService = matchedService;
       _selectedCategory =
           _findCategory(matchedService!.catId);
-      _selectedProvider = _findProvider(widget.initialProvider?.id, matchedService!.id);
+      _selectedProvider = _findProvider(widget.initialProvider?.id, matchedService.id);
     });
   }
 
@@ -278,11 +288,25 @@ class _BookingWidgetState extends State<BookingWidget> {
   }
 
   Future<void> _pickTime() async {
-    final TimeOfDay? pickedTime =
-    await showTimePicker(
+    final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
-      initialTime:
-      _selectedTime ?? TimeOfDay.now(),
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+      helpText: 'CHỌN GIỜ THỰC HIỆN',
+      cancelText: 'HỦY',
+      confirmText: 'CHỌN',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              hourMinuteShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              dayPeriodShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (pickedTime == null || !mounted) {
@@ -395,8 +419,21 @@ class _BookingWidgetState extends State<BookingWidget> {
     final String address =
     _addressController.text.trim();
 
+    final String phone = _phoneController.text.replaceAll(' ', '').trim();
+
     final String note =
     _noteController.text.trim();
+
+    final String bookDate = DateFormat('yyyy-MM-dd HH:mm').format(appointmentDateTime);
+    final bool occupied = await _databaseHelper.providerHasAppointmentAt(
+      providerId: providerId,
+      bookDate: bookDate,
+    );
+    if (!mounted) return;
+    if (occupied) {
+      _showMessage('Nhân viên đã có lịch vào thời gian này. Vui lòng chọn giờ khác.');
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -408,10 +445,9 @@ class _BookingWidgetState extends State<BookingWidget> {
         userId: widget.userId,
         serviceId: serviceId,
         providerId: providerId,
-        bookDate: DateFormat(
-          'yyyy-MM-dd HH:mm',
-        ).format(appointmentDateTime),
+        bookDate: bookDate,
         address: address,
+        phone: phone,
         note: note,
         status: 'PENDING',
       );
@@ -478,6 +514,7 @@ class _BookingWidgetState extends State<BookingWidget> {
 
   void _resetForm() {
     _addressController.text = widget.userAddress.trim();
+    _phoneController.text = widget.userPhone.trim();
     _noteController.clear();
 
     setState(() {
@@ -620,6 +657,8 @@ class _BookingWidgetState extends State<BookingWidget> {
               icon: Icons.location_on,
               title: 'Thông tin liên hệ',
             ),
+            const SizedBox(height: 14),
+            _buildPhoneField(),
             const SizedBox(height: 14),
             _buildAddressField(),
             const SizedBox(height: 14),
@@ -945,6 +984,21 @@ class _BookingWidgetState extends State<BookingWidget> {
               .format(context),
         ),
       ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return TextFormField(
+      controller: _phoneController,
+      enabled: !_isSubmitting,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')), LengthLimitingTextInputFormatter(11)],
+      decoration: _inputDecoration(
+        label: 'Số điện thoại *',
+        icon: Icons.phone_outlined,
+        hint: 'Nhập số điện thoại liên hệ',
+      ),
+      validator: AppValidators.phone,
     );
   }
 

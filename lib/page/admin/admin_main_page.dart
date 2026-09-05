@@ -584,7 +584,7 @@ class _AdminDashboardPageState
                               AdminStatisticCard(
                                 title: 'Dịch vụ',
                                 value: serviceCount.toString(),
-                                icon: Icons.cleaning_services_rounded,
+                                imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952',
                                 subtitle: 'Dịch vụ đang có',
                                 backgroundColor:
                                 const Color(0xFFE8F7EE),
@@ -594,7 +594,7 @@ class _AdminDashboardPageState
                               AdminStatisticCard(
                                 title: 'Nhân viên',
                                 value: providerCount.toString(),
-                                icon: Icons.engineering_rounded,
+                                imageUrl: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4',
                                 subtitle: 'Nhân viên hoạt động',
                                 backgroundColor:
                                 const Color(0xFFEAF2FF),
@@ -605,8 +605,7 @@ class _AdminDashboardPageState
                                 title: 'Lịch hẹn',
                                 value:
                                 appointmentCount.toString(),
-                                icon:
-                                Icons.calendar_month_rounded,
+                                imageUrl: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe',
                                 subtitle: 'Lịch hẹn trong hệ thống',
                                 backgroundColor:
                                 const Color(0xFFFFF3E4),
@@ -616,7 +615,7 @@ class _AdminDashboardPageState
                               AdminStatisticCard(
                                 title: 'Người dùng',
                                 value: userCount.toString(),
-                                icon: Icons.people_rounded,
+                                imageUrl: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d',
                                 subtitle: 'Tài khoản khách hàng',
                                 backgroundColor:
                                 const Color(0xFFF3ECFF),
@@ -627,7 +626,7 @@ class _AdminDashboardPageState
                                 title: 'Doanh thu dự kiến',
                                 value:
                                 _formatCurrency(revenue),
-                                icon: Icons.payments_rounded,
+                                imageUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c',
                                 subtitle: 'Tổng giá trị lịch hẹn',
                                 backgroundColor:
                                 const Color(0xFFFFEDED),
@@ -713,7 +712,7 @@ class AdminStatisticCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
-  final IconData icon;
+  final String imageUrl;
   final Color backgroundColor;
   final Color iconColor;
 
@@ -722,7 +721,7 @@ class AdminStatisticCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.subtitle,
-    required this.icon,
+    required this.imageUrl,
     required this.backgroundColor,
     required this.iconColor,
   });
@@ -745,17 +744,27 @@ class AdminStatisticCard extends StatelessWidget {
             final bool horizontal =
                 constraints.maxWidth > 320;
 
-            final Widget iconWidget = Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 28,
+            final Widget iconWidget = ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: backgroundColor,
+                    alignment: Alignment.center,
+                    child: Text(
+                      title.isEmpty ? '?' : title[0].toUpperCase(),
+                      style: TextStyle(
+                        color: iconColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             );
 

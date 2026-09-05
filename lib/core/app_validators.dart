@@ -59,6 +59,33 @@ class AppValidators {
     return null;
   }
 
+  static String? simpleName(String? value, {String field = 'tên'}) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'Vui lòng nhập $field';
+    if (text.length < 2) return '${field[0].toUpperCase()}${field.substring(1)} phải có ít nhất 2 ký tự';
+    if (text.length > 80) return '${field[0].toUpperCase()}${field.substring(1)} không được vượt quá 80 ký tự';
+    if (!RegExp(r"^[a-zA-ZÀ-ỹ0-9\s.'()&/+\-]+$").hasMatch(text)) {
+      return '${field[0].toUpperCase()}${field.substring(1)} chứa ký tự không hợp lệ';
+    }
+    return null;
+  }
+
+  static String? imageUrl(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    final uri = Uri.tryParse(text);
+    if (uri == null || !uri.hasScheme || !(uri.scheme == 'http' || uri.scheme == 'https') || uri.host.isEmpty) {
+      return 'Đường dẫn ảnh phải là URL http/https hợp lệ';
+    }
+    return null;
+  }
+
+  static String? note(String? value, {int maxLength = 300}) {
+    final text = value?.trim() ?? '';
+    if (text.length > maxLength) return 'Nội dung không được vượt quá $maxLength ký tự';
+    return null;
+  }
+
   static String? positiveNumber(String? value, {String field = 'giá trị'}) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Vui lòng nhập $field';
